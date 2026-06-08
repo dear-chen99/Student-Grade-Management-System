@@ -55,10 +55,21 @@ try:
     import matplotlib.pyplot as plt
     from matplotlib.figure import Figure
     import numpy as np
-    plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei"]
-    plt.rcParams["axes.unicode_minus"] = False
-    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-    MAT_OK: bool = True
+    import sys
+
+# 根据操作系统自动选择中文字体
+    if sys.platform.startswith('win'):
+        # Windows 系统
+        plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei"]
+    elif sys.platform.startswith('darwin'):
+        # macOS 系统
+        plt.rcParams["font.sans-serif"] = ["PingFang SC", "Heiti TC", "Arial Unicode MS"]
+    else:
+        # Linux 或其他系统
+        plt.rcParams["font.sans-serif"] = ["WenQuanYi Micro Hei", "DejaVu Sans"]
+        plt.rcParams["axes.unicode_minus"] = False
+        from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+        MAT_OK: bool = True
 except ImportError as e:
     print(f"Matplotlib 导入失败: {e}")
     MAT_OK = False
