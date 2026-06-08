@@ -1,0 +1,28 @@
+{
+    "app": {
+        "name": "学生成绩管理系统",
+        "version": "1.0.0",
+        "author": "Developer",
+        "description": "用于管理学生成绩的综合系统"
+    },
+    "window": {
+        "width": 1000,
+        "height": 600,
+        "title": "学生成绩管理系统"
+    },
+    "login": {
+        "default_username": "admin",
+        "default_password": "123456",
+        "max_attempts": 3
+    },
+    "data": {
+        "file_path": "data/grades.json",
+        "backup_enabled": true,
+        "backup_interval_days": 7
+    },
+    "chart": {
+        "font_family": "Microsoft YaHei",
+        "default_colors": ["#6366F1", "#8B5CF6", "#3B82F6", "#10B981", "#F59E0B", "#EF4444"],
+        "passing_score": 60
+    }
+}
