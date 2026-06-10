@@ -260,7 +260,7 @@ def import_from_excel(
         else:
             # 没有班级列，使用默认班级
             default_class_name = "24计软技师"
-            logger.info(f"未找到班级列，所有学生将自动归入: {default_class_name}")
+            logger.info("未找到班级列，所有学生将自动归入: %s", default_class_name)
         # ==============================================
 
         # 解析科目列

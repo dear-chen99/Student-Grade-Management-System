@@ -57,18 +57,23 @@ try:
     import numpy as np
     import sys
 
-# 根据操作系统自动选择中文字体
-    if sys.platform.startswith('win'):
+    # 根据操作系统自动选择中文字体
+    if sys.platform.startswith("win"):
         # Windows 系统
         plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei"]
-    elif sys.platform.startswith('darwin'):
+    elif sys.platform.startswith("darwin"):
         # macOS 系统
-        plt.rcParams["font.sans-serif"] = ["PingFang SC", "Heiti TC", "Arial Unicode MS"]
+        plt.rcParams["font.sans-serif"] = [
+            "PingFang SC",
+            "Heiti TC",
+            "Arial Unicode MS",
+        ]
     else:
         # Linux 或其他系统
         plt.rcParams["font.sans-serif"] = ["WenQuanYi Micro Hei", "DejaVu Sans"]
     plt.rcParams["axes.unicode_minus"] = False
     from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
     MAT_OK: bool = True
 except ImportError as e:
     print(f"Matplotlib 导入失败: {e}")
@@ -92,9 +97,9 @@ BASE_DIR: str = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 
 # ==================== 颜色常量 ====================
-TEAL_COLOR = "#00BFA5"      # 青绿色主色调（顶部横幅背景）
-TEAL_DARK = "#00897B"       # 深青绿色（鼠标悬停或文字颜色）
-TEAL_LIGHT = "#E0F2F1"      # 浅青绿色（卡片、背景区域可选）
+TEAL_COLOR = "#00BFA5"  # 青绿色主色调（顶部横幅背景）
+TEAL_DARK = "#00897B"  # 深青绿色（鼠标悬停或文字颜色）
+TEAL_LIGHT = "#E0F2F1"  # 浅青绿色（卡片、背景区域可选）
 
 
 class App:
@@ -123,45 +128,53 @@ class App:
         # 自定义样式：强制顶部横幅为青绿色
         style = Style()
         style.configure("Header.TFrame", background=TEAL_COLOR)
-        style.configure("Header.TLabel", background=TEAL_COLOR, foreground="white", font=("微软雅黑", 16, "bold"))
+        style.configure(
+            "Header.TLabel",
+            background=TEAL_COLOR,
+            foreground="white",
+            font=("微软雅黑", 16, "bold"),
+        )
         style.configure("Sidebar.TFrame", background="#f8f9fa")
         style.configure("Content.TFrame", background="white")
 
         style.configure(
             "Treeview",
-            font=("微软雅黑", 13),       # 字体变大
-            rowheight=40,                # 行高变大（上下距离）
-            padding=(12, 6),             # 单元格左右内边距
+            font=("微软雅黑", 13),  # 字体变大
+            rowheight=40,  # 行高变大（上下距离）
+            padding=(12, 6),  # 单元格左右内边距
             background="white",
-            fieldbackground="white"
+            fieldbackground="white",
         )
         style.configure(
             "Treeview.Heading",
             font=("微软雅黑", 13, "bold"),  # 表头更大
             padding=(10, 8),
-            background="#E6F7F0",         # 淡绿色表头背景
-            foreground="#0F766E"          # 深绿色表头文字
+            background="#E6F7F0",  # 淡绿色表头背景
+            foreground="#0F766E",  # 深绿色表头文字
         )
 
         # ========== 侧边栏按钮三套核心样式 ==========
-        style.configure("Sidebar.TButton",
+        style.configure(
+            "Sidebar.TButton",
             font=("微软雅黑", 12),
             background="#0F766E",
             padding=(15, 12),
             relief="flat",
-            borderwidth=0
+            borderwidth=0,
         )
-        style.map("Sidebar.TButton",
+        style.map(
+            "Sidebar.TButton",
             background=[("active", "#e9ecef")],
-            foreground=[("active", "#00897B")]
+            foreground=[("active", "#00897B")],
         )
-        style.configure("Sidebar.Active.TButton",
+        style.configure(
+            "Sidebar.Active.TButton",
             font=("微软雅黑", 12, "bold"),
             padding=(15, 12),
             relief="flat",
             borderwidth=0,
             background="#065F46",
-            foreground="white"
+            foreground="white",
         )
 
         self._build_ui()
@@ -208,7 +221,7 @@ class App:
         # 右侧内容区域（保留不变）
         self.content_area = tk.Frame(main_container, bg="white")
         self.content_area.pack(side="right", fill="both", expand=True)
-        
+
         # 页面映射（功能完全不变）
         self.page_builders = {
             "📊 仪表盘": self._build_dashboard_page,
@@ -220,38 +233,36 @@ class App:
             "📊 分析": self._build_analysis_page,
             "📈 图表": self._build_chart_page,
         }
-        
+
         self.nav_buttons = []
-        
+
         # -------------- 1. 先单独放【仪表盘】--------------
         idx = 0
         text, builder = list(self.page_builders.items())[idx]
-        
+
         def cmd(b=builder, btn_idx=idx):
             self._switch_page(b)
             self._set_active_button(btn_idx)
-        
-        btn = ttk.Button(
-            sidebar,
-            text=text,
-            style="Sidebar.TButton",
-            command=cmd
-        )
+
+        btn = ttk.Button(sidebar, text=text, style="Sidebar.TButton", command=cmd)
         # 仪表盘：左右留一点边，上下不要pady，避免多余空隙
         btn.pack(fill="x", padx=15, ipady=5)
         self.nav_buttons.append(btn)
-        
+
         # -------------- 2. 只在这里加空隙（仪表盘 ↔ 录入）--------------
         # 高度你可以改，比如 20、25、30
         spacer = tk.Frame(sidebar, height=20, bg="#0F766E")
         spacer.pack(fill="x")
-        
+
         # -------------- 3. 录入及以下：紧挨着，无空隙 --------------
-        for idx, (text, builder) in enumerate(list(self.page_builders.items())[1:], start=1):
+        for idx, (text, builder) in enumerate(
+            list(self.page_builders.items())[1:], start=1
+        ):
+
             def cmd(b=builder, btn_idx=idx):
                 self._switch_page(b)
                 self._set_active_button(btn_idx)
-        
+
             btn = tk.Label(
                 sidebar,
                 text=text,
@@ -260,15 +271,21 @@ class App:
                 fg="#495057",
                 cursor="hand2",
             )
-            btn.bind("<Button-1>", lambda e, b=builder, i=idx: (self._switch_page(b), self._set_active_button(i)))
-        
+            btn.bind(
+                "<Button-1>",
+                lambda e, b=builder, i=idx: (
+                    self._switch_page(b),
+                    self._set_active_button(i),
+                ),
+            )
+
             btn.pack(fill="x", padx=15, ipady=8)
             self.nav_buttons.append(btn)
-        
+
         # 默认选中第一个【仪表盘】按钮
         if self.nav_buttons:
             self.nav_buttons[0].configure(style="Sidebar.Active.TButton")
-        
+
         # 默认显示仪表盘
         self._switch_page(self._build_dashboard_page)
 
@@ -290,7 +307,9 @@ class App:
                 if idx == 0:
                     btn.configure(style="Sidebar.Active.TButton")
                 else:
-                    btn.configure(font=("微软雅黑", 12, "bold"), fg=TEAL_COLOR, bg="#e9ecef")
+                    btn.configure(
+                        font=("微软雅黑", 12, "bold"), fg=TEAL_COLOR, bg="#e9ecef"
+                    )
             else:
                 if idx == 0:
                     btn.configure(style="Sidebar.TButton")
@@ -309,9 +328,9 @@ class App:
         ).pack(side="left", padx=12)
 
         self.clock: tk.StringVar = tk.StringVar()
-        tk.Label(
-            bar, textvariable=self.clock, font=("微软雅黑", 9), bg="#E2E8F0"
-        ).pack(side="right", padx=12)
+        tk.Label(bar, textvariable=self.clock, font=("微软雅黑", 9), bg="#E2E8F0").pack(
+            side="right", padx=12
+        )
 
         # 已删除：备份和恢复按钮
 
@@ -324,10 +343,20 @@ class App:
         # 顶部欢迎横幅
         banner = tk.Frame(parent, bg=TEAL_COLOR, height=80)
         banner.pack(fill="x")
-        tk.Label(banner, text="👋 欢迎回来，admin", font=("微软雅黑", 18, "bold"),
-                 fg="white", bg=TEAL_COLOR).pack(pady=(12, 2))
-        tk.Label(banner, text=f"当前角色：管理员 | {datetime.datetime.now().strftime('%Y年%m月%d日')}",
-                 font=("微软雅黑", 10), fg="#e0f2f1", bg=TEAL_COLOR).pack()
+        tk.Label(
+            banner,
+            text="👋 欢迎回来，admin",
+            font=("微软雅黑", 18, "bold"),
+            fg="white",
+            bg=TEAL_COLOR,
+        ).pack(pady=(12, 2))
+        tk.Label(
+            banner,
+            text=f"当前角色：管理员 | {datetime.datetime.now().strftime('%Y年%m月%d日')}",
+            font=("微软雅黑", 10),
+            fg="#e0f2f1",
+            bg=TEAL_COLOR,
+        ).pack()
 
         # 统计卡片行
         card_row = tk.Frame(parent, bg="white")
@@ -338,16 +367,34 @@ class App:
         def create_card(container, icon, title, value, color):
             card = tk.Frame(container, bg="white", relief="solid", bd=1)
             card.pack(side="left", fill="both", expand=True, padx=5)
-            tk.Label(card, text=icon, font=("微软雅黑", 20), bg="white").pack(anchor="w", padx=10, pady=5)
-            tk.Label(card, text=title, font=("微软雅黑", 10), fg="#6b7280", bg="white").pack(anchor="w", padx=10)
-            val_lbl = tk.Label(card, text=str(value), font=("微软雅黑", 24, "bold"), fg=color, bg="white")
+            tk.Label(card, text=icon, font=("微软雅黑", 20), bg="white").pack(
+                anchor="w", padx=10, pady=5
+            )
+            tk.Label(
+                card, text=title, font=("微软雅黑", 10), fg="#6b7280", bg="white"
+            ).pack(anchor="w", padx=10)
+            val_lbl = tk.Label(
+                card,
+                text=str(value),
+                font=("微软雅黑", 24, "bold"),
+                fg=color,
+                bg="white",
+            )
             val_lbl.pack(anchor="w", padx=10, pady=5)
             return val_lbl
 
-        self.da_cards["students"] = create_card(card_row, "👥", "学生总数", len(self.dm.students), TEAL_COLOR)
-        self.da_cards["subjects"] = create_card(card_row, "📚", "科目数量", len(self.dm.subjects), "#8B5CF6")
-        self.da_cards["classes"] = create_card(card_row, "🏫", "班级数量", len(self.dm.classes), "#10B981")
-        self.da_cards["warnings"] = create_card(card_row, "⚠️", "预警人数", len(self.dm.get_warnings()), "#EF4444")
+        self.da_cards["students"] = create_card(
+            card_row, "👥", "学生总数", len(self.dm.students), TEAL_COLOR
+        )
+        self.da_cards["subjects"] = create_card(
+            card_row, "📚", "科目数量", len(self.dm.subjects), "#8B5CF6"
+        )
+        self.da_cards["classes"] = create_card(
+            card_row, "🏫", "班级数量", len(self.dm.classes), "#10B981"
+        )
+        self.da_cards["warnings"] = create_card(
+            card_row, "⚠️", "预警人数", len(self.dm.get_warnings()), "#EF4444"
+        )
 
         # 下边区域：左侧图表 + 右侧预警列表
         chart_row = tk.Frame(parent, bg="white")
@@ -356,14 +403,21 @@ class App:
         # 左：科目均分图
         left_chart = tk.Frame(chart_row, bg="white", bd=1, relief="solid")
         left_chart.pack(side="left", fill="both", expand=True, padx=5)
-        tk.Label(left_chart, text="📈 各科目平均分", font=("微软雅黑", 11, "bold"), bg="white").pack(pady=5)
+        tk.Label(
+            left_chart,
+            text="📈 各科目平均分",
+            font=("微软雅黑", 11, "bold"),
+            bg="white",
+        ).pack(pady=5)
         self.da_subj_frame = tk.Frame(left_chart, bg="white")
         self.da_subj_frame.pack(fill="both", expand=True, padx=8, pady=(0, 5))
 
         # 右：预警列表
         right_list = tk.Frame(chart_row, bg="white", bd=1, relief="solid")
         right_list.pack(side="right", fill="both", expand=True, padx=5)
-        tk.Label(right_list, text="⚠️ 成绩预警", font=("微软雅黑", 11, "bold"), bg="white").pack(pady=5)
+        tk.Label(
+            right_list, text="⚠️ 成绩预警", font=("微软雅黑", 11, "bold"), bg="white"
+        ).pack(pady=5)
         self.da_warn_frame = tk.Frame(right_list, bg="white")
         self.da_warn_frame.pack(fill="both", expand=True, padx=8, pady=(0, 5))
 
@@ -475,38 +529,33 @@ class App:
         # ========== ✅ 直接创建表格，不调用 _create_treeview ==========
         columns = ["班级名称", "学生人数", "平均分", "最高分", "最低分", "操作"]
         widths = [150, 80, 80, 80, 80, 120]
-        
+
         # 1. 创建外层容器 frame（用于装表格和滚动条）
         frame = tk.Frame(parent, bg="white")
         frame.pack(pady=(0, 10), fill="both", expand=True)
-        
+
         # 2. 创建表格
-        self.cl_tree = ttk.Treeview(
-            frame,
-            columns=columns,
-            show="headings",
-            height=15
-        )
-        
+        self.cl_tree = ttk.Treeview(frame, columns=columns, show="headings", height=15)
+
         # 3. 添加滚动条
         v_scroll = ttk.Scrollbar(frame, orient="vertical", command=self.cl_tree.yview)
         h_scroll = ttk.Scrollbar(frame, orient="horizontal", command=self.cl_tree.xview)
         self.cl_tree.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
-        
+
         # 4. 设置列宽
         for col, width in zip(columns, widths):
             self.cl_tree.heading(col, text=col)
             self.cl_tree.column(col, width=width, anchor="center")
-        
+
         # 5. 放置滚动条和表格
         v_scroll.pack(side="right", fill="y")
         h_scroll.pack(side="bottom", fill="x")
         self.cl_tree.pack(fill="both", expand=True)
-        
+
         # 6. 添加斑马纹样式
         self.cl_tree.tag_configure("odd", background="#F8FAFC")
         self.cl_tree.tag_configure("even", background="#FFFFFF")
-        
+
         # 7. 绑定双击事件
         self.cl_tree.bind("<Double-1>", self._class_double_click)
 
@@ -529,7 +578,9 @@ class App:
         btn_frame.pack(pady=2)
 
         # 班级过滤
-        tk.Label(btn_frame, text="班级过滤：", font=("微软雅黑", 13), bg="white").pack(side="left", padx=(10, 2))
+        tk.Label(btn_frame, text="班级过滤：", font=("微软雅黑", 13), bg="white").pack(
+            side="left", padx=(10, 2)
+        )
         classes = ["全部班级"] + self.dm.classes
         self.mg_filter_class = tk.StringVar(value="全部班级")
         self.mg_class_cb = ttk.Combobox(
@@ -540,20 +591,32 @@ class App:
             state="readonly",
         )
         self.mg_class_cb.pack(side="left", padx=(0, 8))
-        self.mg_class_cb.bind("<<ComboboxSelected>>", lambda e: self._refresh_manage_tree())
+        self.mg_class_cb.bind(
+            "<<ComboboxSelected>>", lambda e: self._refresh_manage_tree()
+        )
 
         # 成绩范围筛选
-        tk.Label(btn_frame, text="成绩范围：", font=("微软雅黑", 13), bg="white").pack(side="left", padx=(5, 2))
+        tk.Label(btn_frame, text="成绩范围：", font=("微软雅黑", 13), bg="white").pack(
+            side="left", padx=(5, 2)
+        )
         self.mg_filter_score = tk.StringVar(value="全部")
         self.mg_score_cb = ttk.Combobox(
             btn_frame,
             textvariable=self.mg_filter_score,
-            values=["全部", "不及格 (<60)", "及格 (60-69)", "良好 (70-89)", "优秀 (≥90)"],
+            values=[
+                "全部",
+                "不及格 (<60)",
+                "及格 (60-69)",
+                "良好 (70-89)",
+                "优秀 (≥90)",
+            ],
             width=12,
             state="readonly",
         )
         self.mg_score_cb.pack(side="left", padx=(0, 15))
-        self.mg_score_cb.bind("<<ComboboxSelected>>", lambda e: self._refresh_manage_tree())
+        self.mg_score_cb.bind(
+            "<<ComboboxSelected>>", lambda e: self._refresh_manage_tree()
+        )
 
         ttk.Button(
             btn_frame,
@@ -567,10 +630,10 @@ class App:
         widths = [110, 90, 90] + self._calc_subject_widths(subjects) + [80, 80]
         self.mg_tree = self._create_treeview(parent, columns, widths, 18)
         # ====== ✅ 新增：颜色预警标签 ======
-        self.mg_tree.tag_configure("fail", foreground="#EF4444")      # 不及格 → 红色
-        self.mg_tree.tag_configure("warn", foreground="#F59E0B")      # 偏低 → 橙色
-        self.mg_tree.tag_configure("good", foreground="#10B981")      # 全优 → 绿色
-        self.mg_tree.tag_configure("empty_all", foreground="#9CA3AF") # 全部缺考 → 灰色
+        self.mg_tree.tag_configure("fail", foreground="#EF4444")  # 不及格 → 红色
+        self.mg_tree.tag_configure("warn", foreground="#F59E0B")  # 偏低 → 橙色
+        self.mg_tree.tag_configure("good", foreground="#10B981")  # 全优 → 绿色
+        self.mg_tree.tag_configure("empty_all", foreground="#9CA3AF")  # 全部缺考 → 灰色
         # ========================================
         self.mg_tree.bind("<Double-1>", self._manage_cell_double_click)
 
@@ -635,7 +698,7 @@ class App:
             bg="white",
             selectbackground="#DBEAFE",
             selectborderwidth=3,
-            width=32
+            width=32,
         )
         self.se_list.pack(fill="both", expand=True, ipady=20)
         self.se_list.bind("<<ListboxSelect>>", self._search_show_detail)
@@ -657,16 +720,27 @@ class App:
             header_frame,
             text="📜 查看历史",
             style="primary.TButton",
-            command=lambda: self._search_show_history(self.dv["sid"].get() if hasattr(self, "dv") else "")
+            command=lambda: self._search_show_history(
+                self.dv["sid"].get() if hasattr(self, "dv") else ""
+            ),
         ).pack(side="right")
 
         self.dv = {}
         info_frame = tk.Frame(detail_frame, bg="white")
         info_frame.pack(pady=3)
-        for i, (key, label) in enumerate([("sid", "学号"), ("name", "姓名"), ("cls", "班级")]):
-            tk.Label(info_frame, text=f"{label}：", bg="white", font=("微软雅黑", 12)).grid(row=i, column=0, sticky="w", padx=10, pady=2)
+        for i, (key, label) in enumerate(
+            [("sid", "学号"), ("name", "姓名"), ("cls", "班级")]
+        ):
+            tk.Label(
+                info_frame, text=f"{label}：", bg="white", font=("微软雅黑", 12)
+            ).grid(row=i, column=0, sticky="w", padx=10, pady=2)
             self.dv[key] = tk.StringVar(value="—")
-            tk.Label(info_frame, textvariable=self.dv[key], font=("微软雅黑", 13, "bold"), bg="white").grid(row=i, column=1, sticky="w", padx=10, pady=2)
+            tk.Label(
+                info_frame,
+                textvariable=self.dv[key],
+                font=("微软雅黑", 13, "bold"),
+                bg="white",
+            ).grid(row=i, column=1, sticky="w", padx=10, pady=2)
 
         self.stt = ttk.Treeview(
             detail_frame,
@@ -679,16 +753,29 @@ class App:
             self.stt.column(col, width=width, anchor="center")
         self.stt.pack(pady=10, padx=10, fill="both", expand=True)
 
-        level_tags = [("excellent", "#D1FAE5"), ("good", "#DBEAFE"), ("pass_", "#FEF9C3"), ("fail", "#FEE2E2")]
+        level_tags = [
+            ("excellent", "#D1FAE5"),
+            ("good", "#DBEAFE"),
+            ("pass_", "#FEF9C3"),
+            ("fail", "#FEE2E2"),
+        ]
         for tag, bg in level_tags:
             self.stt.tag_configure(tag, background=bg)
 
         summary_frame = tk.Frame(detail_frame, bg="#F0F9FF")
         summary_frame.pack(pady=5, fill="x")
         for label, key in [("总分", "total"), ("平均分", "avg")]:
-            tk.Label(summary_frame, text=label + ":", bg="#F0F9FF", font=("微软雅黑", 12)).pack(side="left", padx=30)
+            tk.Label(
+                summary_frame, text=label + ":", bg="#F0F9FF", font=("微软雅黑", 12)
+            ).pack(side="left", padx=30)
             self.dv[key] = tk.StringVar(value="—")
-            tk.Label(summary_frame, textvariable=self.dv[key], font=("微软雅黑", 18, "bold"), fg="#1E3A8A", bg="#F0F9FF").pack(side="left", padx=10)
+            tk.Label(
+                summary_frame,
+                textvariable=self.dv[key],
+                font=("微软雅黑", 18, "bold"),
+                fg="#1E3A8A",
+                bg="#F0F9FF",
+            ).pack(side="left", padx=10)
 
         self._refresh_search_list()
 
@@ -708,10 +795,26 @@ class App:
         tk.Label(control_frame, text="科目：", bg="white").pack(side="left", padx=5)
         first_subject = self.dm.subjects[0] if self.dm.subjects else ""
         self.an_subj = tk.StringVar(value=first_subject)
-        self.an_cb = ttk.Combobox(control_frame, textvariable=self.an_subj, values=self.dm.subjects, width=10, state="readonly")
+        self.an_cb = ttk.Combobox(
+            control_frame,
+            textvariable=self.an_subj,
+            values=self.dm.subjects,
+            width=10,
+            state="readonly",
+        )
         self.an_cb.pack(side="left", padx=5)
-        ttk.Button(control_frame, text="📊 分析", style="primary.TButton", command=self._analyze_subject).pack(side="left", padx=5)
-        ttk.Button(control_frame, text="⚙️ 科目管理", style="warning.TButton", command=self._manage_subjects).pack(side="left", padx=5)
+        ttk.Button(
+            control_frame,
+            text="📊 分析",
+            style="primary.TButton",
+            command=self._analyze_subject,
+        ).pack(side="left", padx=5)
+        ttk.Button(
+            control_frame,
+            text="⚙️ 科目管理",
+            style="warning.TButton",
+            command=self._manage_subjects,
+        ).pack(side="left", padx=5)
 
         main_frame = tk.Frame(parent, bg="white")
         main_frame.pack(fill="both", expand=True, padx=5, pady=3)
@@ -719,37 +822,65 @@ class App:
         # 左侧：统计信息
         left_frame = tk.Frame(main_frame, bg="white", bd=1, relief="solid")
         left_frame.pack(side="left", fill="y", padx=3, pady=3)
-        tk.Label(left_frame, text="📈 统计信息", font=("微软雅黑", 11, "bold"), bg="white").pack(pady=4)
+        tk.Label(
+            left_frame, text="📈 统计信息", font=("微软雅黑", 11, "bold"), bg="white"
+        ).pack(pady=4)
         self.alab = {}
-        stat_items = [("人数", "cnt"), ("最高", "mx"), ("最低", "mn"), ("均分", "av"), ("及格率", "ps"), ("优秀率", "ex") ]
+        stat_items = [
+            ("人数", "cnt"),
+            ("最高", "mx"),
+            ("最低", "mn"),
+            ("均分", "av"),
+            ("及格率", "ps"),
+            ("优秀率", "ex"),
+        ]
         for label, key in stat_items:
             row = tk.Frame(left_frame, bg="white")
             row.pack(fill="x", pady=2)
             tk.Label(row, text=label + "：", bg="white").pack(side="left", padx=10)
-            self.alab[key] = tk.Label(row, text="—", font=("微软雅黑", 10, "bold"), bg="white")
+            self.alab[key] = tk.Label(
+                row, text="—", font=("微软雅黑", 10, "bold"), bg="white"
+            )
             self.alab[key].pack(side="left")
 
-        self.adist = ttk.Treeview(left_frame, columns=["段", "人", "%"], show="headings", height=6)
+        self.adist = ttk.Treeview(
+            left_frame, columns=["段", "人", "%"], show="headings", height=6
+        )
         for col, width in [("段", 60), ("人", 40), ("%", 50)]:
             self.adist.heading(col, text=col)
             self.adist.column(col, width=width, anchor="center")
         self.adist.pack(pady=6)
-        dist_tags = [("0-59", "#FEE2E2"), ("60-69", "#FEF3C7"), ("70-79", "#FEF9C3"), ("80-89", "#DBEAFE"), ("90-100", "#D1FAE5")]
+        dist_tags = [
+            ("0-59", "#FEE2E2"),
+            ("60-69", "#FEF3C7"),
+            ("70-79", "#FEF9C3"),
+            ("80-89", "#DBEAFE"),
+            ("90-100", "#D1FAE5"),
+        ]
         for seg, bg in dist_tags:
             self.adist.tag_configure(seg, background=bg)
 
         # 右侧：成绩明细
         right_frame = tk.Frame(main_frame, bg="white", bd=1, relief="solid")
         right_frame.pack(side="right", fill="both", expand=True, padx=3, pady=3)
-        tk.Label(right_frame, text="📋 成绩明细", font=("微软雅黑", 11, "bold"), bg="white").pack(pady=4)
+        tk.Label(
+            right_frame, text="📋 成绩明细", font=("微软雅黑", 11, "bold"), bg="white"
+        ).pack(pady=4)
         detail_cols = ["名次", "学号", "姓名", "班级", "成绩", "等级"]
         detail_widths = [50, 110, 90, 90, 80, 80]
-        self.adt = ttk.Treeview(right_frame, columns=detail_cols, show="headings", height=20)
+        self.adt = ttk.Treeview(
+            right_frame, columns=detail_cols, show="headings", height=20
+        )
         for col, width in zip(detail_cols, detail_widths):
             self.adt.heading(col, text=col)
             self.adt.column(col, width=width, anchor="center")
         self.adt.pack(fill="both", expand=True, padx=10, pady=10)
-        level_tags = [("excellent", "#D1FAE5"), ("good", "#DBEAFE"), ("pass_", "#FEF9C3"), ("fail", "#FEE2E2")]
+        level_tags = [
+            ("excellent", "#D1FAE5"),
+            ("good", "#DBEAFE"),
+            ("pass_", "#FEF9C3"),
+            ("fail", "#FEE2E2"),
+        ]
         for tag, bg in level_tags:
             self.adt.tag_configure(tag, background=bg)
 
@@ -762,10 +893,17 @@ class App:
     def _build_chart_page(self, parent: tk.Frame) -> None:
         """构建图表页面。"""
         if not MAT_OK:
-            tk.Label(parent, text="⚠️ 未安装 matplotlib，无法使用图表功能", fg="red", font=("微软雅黑", 12)).pack(expand=True)
+            tk.Label(
+                parent,
+                text="⚠️ 未安装 matplotlib，无法使用图表功能",
+                fg="red",
+                font=("微软雅黑", 12),
+            ).pack(expand=True)
             return
 
-        tk.Label(parent, text="📈 数据图表", font=("微软雅黑", 14, "bold"), bg="white").pack(pady=4)
+        tk.Label(
+            parent, text="📈 数据图表", font=("微软雅黑", 14, "bold"), bg="white"
+        ).pack(pady=4)
         control_frame = tk.Frame(parent, bg="white")
         control_frame.pack()
         chart_buttons = [
@@ -776,12 +914,26 @@ class App:
             ("箱线图", self._chart_boxplot),
         ]
         for text, cmd in chart_buttons:
-            ttk.Button(control_frame, text=text, style="primary.TButton", command=cmd).pack(side="left", padx=3)
+            ttk.Button(
+                control_frame, text=text, style="primary.TButton", command=cmd
+            ).pack(side="left", padx=3)
 
-        tk.Label(control_frame, text="科目（仅成绩分布使用）：", bg="white", fg="#64748B", font=("微软雅黑", 9)).pack(side="left", padx=(10, 2))
+        tk.Label(
+            control_frame,
+            text="科目（仅成绩分布使用）：",
+            bg="white",
+            fg="#64748B",
+            font=("微软雅黑", 9),
+        ).pack(side="left", padx=(10, 2))
         first_subject = self.dm.subjects[0] if self.dm.subjects else ""
         self.ch_subj = tk.StringVar(value=first_subject)
-        self.ch_cb = ttk.Combobox(control_frame, textvariable=self.ch_subj, values=self.dm.subjects, width=10, state="readonly")
+        self.ch_cb = ttk.Combobox(
+            control_frame,
+            textvariable=self.ch_subj,
+            values=self.dm.subjects,
+            width=10,
+            state="readonly",
+        )
         self.ch_cb.pack(side="left")
         self.ch_subj.trace("w", lambda *args: self._chart_histogram())
 
@@ -794,7 +946,6 @@ class App:
     # ========== 公共工具方法 ==========
 
     @staticmethod
-
     def _get_level(score: float) -> str:
         if score >= 90:
             return "优秀"
@@ -805,7 +956,6 @@ class App:
         return "不及格"
 
     @staticmethod
-
     def _get_level_tag(score: float) -> tuple[str, str]:
         if score >= 90:
             return "excellent", "优秀"
@@ -827,7 +977,9 @@ class App:
         self.status.set(f"  {icons.get(level, 'ℹ️')}  {text}")
 
     def _update_status(self) -> None:
-        self._show_status(f"学生 {len(self.dm.students)} 人 | 科目 {len(self.dm.subjects)} 门")
+        self._show_status(
+            f"学生 {len(self.dm.students)} 人 | 科目 {len(self.dm.subjects)} 门"
+        )
 
     def _update_clock(self) -> None:
         self.clock.set(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -845,10 +997,19 @@ class App:
         if hasattr(self, "cl_tree"):
             self._refresh_class_tree()
 
-    def _calc_subject_widths(self, subjects: list[str], min_width: int = 72) -> list[int]:
+    def _calc_subject_widths(
+        self, subjects: list[str], min_width: int = 72
+    ) -> list[int]:
         return [max(min_width, len(s) * 14) for s in subjects]
 
-    def _create_treeview(self, parent: tk.Frame, columns: list[str], widths: list[int], height: int = 14, pack_frame: bool = True) -> ttk.Treeview:
+    def _create_treeview(
+        self,
+        parent: tk.Frame,
+        columns: list[str],
+        widths: list[int],
+        height: int = 14,
+        pack_frame: bool = True,
+    ) -> ttk.Treeview:
         frame = tk.Frame(parent, bg="white")
         tree = ttk.Treeview(frame, columns=columns, show="headings", height=height)
         v_scroll = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
@@ -943,9 +1104,14 @@ class App:
             sid = str(vals[1]).strip()
             name = str(vals[2]).strip()
             cls = str(vals[3]).strip()
-            scores_raw = vals[4:4 + len(subjects)]
+            scores_raw = vals[4 : 4 + len(subjects)]
 
-            if not sid and not name and not cls and all(str(x).strip() == "" for x in scores_raw):
+            if (
+                not sid
+                and not name
+                and not cls
+                and all(str(x).strip() == "" for x in scores_raw)
+            ):
                 continue
             if not sid:
                 errors.append(f"行 {vals[0]}: 学号不能为空")
@@ -989,18 +1155,28 @@ class App:
 
     def _refresh_excel_tree(self) -> None:
         self.ex_tree.delete(*self.ex_tree.get_children())
-        for idx, (sid, stu) in enumerate(sorted(self.dm.students.items(), key=lambda x: x[0])):
+        for idx, (sid, stu) in enumerate(
+            sorted(self.dm.students.items(), key=lambda x: x[0])
+        ):
             st = self.dm.stats(sid)
             if st is None:
                 continue
-            vals = [sid, stu["name"], stu.get("class", "")] + [stu["scores"].get(s, "-") for s in self.dm.subjects] + [st["total"], st["avg"]]
+            vals = (
+                [sid, stu["name"], stu.get("class", "")]
+                + [stu["scores"].get(s, "-") for s in self.dm.subjects]
+                + [st["total"], st["avg"]]
+            )
             base_tag = "odd" if idx % 2 == 0 else "even"
             self.ex_tree.insert("", "end", values=vals, tags=(base_tag,))
 
     def _export_template(self) -> None:
         if not self._check_excel_available():
             return
-        filepath = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel", "*.xlsx")], initialfile="成绩模板.xlsx")
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".xlsx",
+            filetypes=[("Excel", "*.xlsx")],
+            initialfile="成绩模板.xlsx",
+        )
         if not filepath:
             return
         if create_template(filepath, self.dm.subjects):
@@ -1030,7 +1206,11 @@ class App:
     def _export_excel(self) -> None:
         if not self._check_excel_available():
             return
-        filepath = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel", "*.xlsx")], initialfile=get_excel_filename())
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".xlsx",
+            filetypes=[("Excel", "*.xlsx")],
+            initialfile=get_excel_filename(),
+        )
         if not filepath:
             return
         if export_to_excel(filepath, self.dm):
@@ -1041,7 +1221,11 @@ class App:
             messagebox.showerror("错误", "导出失败")
 
     def _export_csv(self) -> None:
-        filepath = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV", "*.csv")], initialfile=get_csv_filename())
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV", "*.csv")],
+            initialfile=get_csv_filename(),
+        )
         if not filepath:
             return
         if export_to_csv(filepath, self.dm):
@@ -1078,13 +1262,15 @@ class App:
             if st is None:
                 continue
 
-            vals = [sid, stu["name"], stu.get("class", "")] + \
-                   [stu["scores"].get(s, "-") for s in self.dm.subjects] + \
-                   [st["total"], st["avg"]]
+            vals = (
+                [sid, stu["name"], stu.get("class", "")]
+                + [stu["scores"].get(s, "-") for s in self.dm.subjects]
+                + [st["total"], st["avg"]]
+            )
 
             # 成绩范围过滤
             if filter_score != "全部":
-                score_vals = vals[3:3+subject_count]
+                score_vals = vals[3 : 3 + subject_count]
                 pass_ok = True  # 全部 ≥ 60
                 has_60_69 = False
                 has_70_89 = False
@@ -1114,7 +1300,9 @@ class App:
                     pass
                 elif filter_score == "及格 (60-69)" and (pass_ok and has_60_69):
                     pass
-                elif filter_score == "良好 (70-89)" and (pass_ok and not has_60_69 and has_70_89):
+                elif filter_score == "良好 (70-89)" and (
+                    pass_ok and not has_60_69 and has_70_89
+                ):
                     pass
                 elif filter_score == "优秀 (≥90)" and all_ge_90:
                     pass
@@ -1138,7 +1326,7 @@ class App:
             base_tag = "odd" if idx % 2 == 0 else "even"
 
             # ====== 计算颜色标签 ======
-            score_vals = vals[3:3+subject_count]
+            score_vals = vals[3 : 3 + subject_count]
             has_fail = False
             has_warn = False
             has_good = True
@@ -1191,7 +1379,6 @@ class App:
             self._show_status(f"全部学生共 {total} 人", "info")
 
     @staticmethod
-
     def _mg_sort_key(vals: list, col_idx: int) -> float | str:
         """生成排序键值（数字优先，文本兜底）。"""
         v = vals[col_idx]
@@ -1226,7 +1413,9 @@ class App:
 
         # 编辑姓名或班级
         if col_index in (1, 2):
-            new_val = simpledialog.askstring("修改", f"学号 {sid}\n新值 (留空清除)：", initialvalue=vals[col_index])
+            new_val = simpledialog.askstring(
+                "修改", f"学号 {sid}\n新值 (留空清除)：", initialvalue=vals[col_index]
+            )
             if new_val is None:
                 return
             name, cls = vals[1], vals[2]
@@ -1279,7 +1468,9 @@ class App:
         name = simpledialog.askstring("姓名", "新姓名：", initialvalue=stu["name"])
         if name is None:
             return
-        cls = simpledialog.askstring("班级", "新班级：", initialvalue=stu.get("class", ""))
+        cls = simpledialog.askstring(
+            "班级", "新班级：", initialvalue=stu.get("class", "")
+        )
         if cls is None:
             return
         try:
@@ -1309,7 +1500,9 @@ class App:
         for sid in results:
             stu = self.dm.get_stu(sid)
             if stu:
-                self.se_list.insert("end", f"{sid} | {stu['name']} | {stu.get('class', '')}")
+                self.se_list.insert(
+                    "end", f"{sid} | {stu['name']} | {stu.get('class', '')}"
+                )
         if len(results) == 1:
             self.se_list.selection_set(0)
             self._search_show_detail(None)
@@ -1342,7 +1535,9 @@ class App:
             if score is not None:
                 tag, level = self._get_level_tag(score)
                 base_tag = "odd" if idx % 2 == 0 else "even"
-                self.stt.insert("", "end", values=(subject, score, level), tags=(base_tag, tag))
+                self.stt.insert(
+                    "", "end", values=(subject, score, level), tags=(base_tag, tag)
+                )
 
     def _search_show_history(self, student_id: str) -> None:
         if not student_id or student_id == "—":
@@ -1360,11 +1555,17 @@ class App:
         dialog.title(f"成绩修改历史 - {student_id}")
         dialog.geometry("500x400")
         dialog.grab_set()
-        
-        tk.Label(dialog, text=f"学生 {student_id} 的成绩修改历史", font=("微软雅黑", 12, "bold")).pack(pady=8)
+
+        tk.Label(
+            dialog,
+            text=f"学生 {student_id} 的成绩修改历史",
+            font=("微软雅黑", 12, "bold"),
+        ).pack(pady=8)
 
         if not history:
-            tk.Label(dialog, text="暂无修改记录", font=("微软雅黑", 11), fg="#64748B").pack(expand=True)
+            tk.Label(
+                dialog, text="暂无修改记录", font=("微软雅黑", 11), fg="#64748B"
+            ).pack(expand=True)
             ttk.Button(dialog, text="关闭", command=dialog.destroy).pack(pady=8)
             return
 
@@ -1384,7 +1585,17 @@ class App:
             new_val = record.get("new")
             old_str = str(old_val) if old_val is not None else "—"
             new_str = str(new_val) if new_val is not None else "—"
-            tree.insert("", "end", values=(record.get("time", "")[:16], record.get("subject", ""), old_str, new_str), tags=(base_tag,))
+            tree.insert(
+                "",
+                "end",
+                values=(
+                    record.get("time", "")[:16],
+                    record.get("subject", ""),
+                    old_str,
+                    new_str,
+                ),
+                tags=(base_tag,),
+            )
 
         ttk.Button(dialog, text="关闭", command=dialog.destroy).pack(pady=8)
 
@@ -1413,15 +1624,25 @@ class App:
 
         self.alab["cnt"].config(text=f"{analysis['count']} 人")
         self.alab["mx"].config(text=str(analysis["max"]), fg="#059669")
-        self.alab["mn"].config(text=str(analysis["min"]), fg="#EF4444" if analysis["min"] < 60 else "#1E293B")
+        self.alab["mn"].config(
+            text=str(analysis["min"]),
+            fg="#EF4444" if analysis["min"] < 60 else "#1E293B",
+        )
         self.alab["av"].config(text=str(analysis["avg"]))
-        self.alab["ps"].config(text=f"{analysis['pass_rate']}%", fg="#059669" if analysis["pass_rate"] >= 60 else "#EF4444")
+        self.alab["ps"].config(
+            text=f"{analysis['pass_rate']}%",
+            fg="#059669" if analysis["pass_rate"] >= 60 else "#EF4444",
+        )
         self.alab["ex"].config(text=f"{analysis['excellent_rate']}%")
 
         self.adist.delete(*self.adist.get_children())
         for seg in ["0-59", "60-69", "70-79", "80-89", "90-100"]:
             count = analysis["distribution"].get(seg, 0)
-            pct = f"{round(count / analysis['count'] * 100, 1)}%" if analysis["count"] else "0%"
+            pct = (
+                f"{round(count / analysis['count'] * 100, 1)}%"
+                if analysis["count"]
+                else "0%"
+            )
             self.adist.insert("", "end", values=(seg, count, pct), tags=(seg,))
 
         self.adt.delete(*self.adt.get_children())
@@ -1434,16 +1655,18 @@ class App:
 
         for rank, (sid, name, cls, score) in enumerate(rows, 1):
             tag, level = self._get_level_tag(score)
-            self.adt.insert("", "end", values=(rank, sid, name, cls, score, level), tags=(tag,))
+            self.adt.insert(
+                "", "end", values=(rank, sid, name, cls, score, level), tags=(tag,)
+            )
 
     def _manage_subjects(self) -> None:
         dialog = tk.Toplevel(self.win)
         dialog.title("科目管理")
-        dialog.geometry("300x300")
+        dialog.geometry("350x350")  # 稍微加宽，避免按钮拥挤
         dialog.grab_set()
 
         listbox = tk.Listbox(dialog)
-        listbox.pack(fill="both", expand=True)
+        listbox.pack(fill="both", expand=True, padx=10, pady=10)
         for s in self.dm.subjects:
             listbox.insert("end", s)
 
@@ -1469,11 +1692,21 @@ class App:
             except Exception as e:
                 messagebox.showerror("错误", str(e))
 
+        # 按钮栏：拉开间距 + 不同颜色样式
         btn_frame = tk.Frame(dialog)
-        btn_frame.pack()
-        ttk.Button(btn_frame, text="➕ 添加", command=_add).pack(side="left")
-        ttk.Button(btn_frame, text="🗑️ 删除", command=_delete).pack(side="left")
-        ttk.Button(btn_frame, text="关闭", command=dialog.destroy).pack(side="left")
+        btn_frame.pack(pady=15)
+
+        ttk.Button(
+            btn_frame, text="➕ 添加", style="success.TButton", command=_add
+        ).pack(side="left", padx=10)
+
+        ttk.Button(
+            btn_frame, text="🗑️ 删除", style="danger.TButton", command=_delete
+        ).pack(side="left", padx=10)
+
+        ttk.Button(
+            btn_frame, text="关闭", style="secondary.TButton", command=dialog.destroy
+        ).pack(side="left", padx=10)
 
     def _refresh_subject_ui(self) -> None:
         subjects = self.dm.subjects
@@ -1490,7 +1723,9 @@ class App:
                     self.mg_tree.column(cols[i], width=w, minwidth=50)
             # 更新列头排序绑定
             for col in cols:
-                self.mg_tree.heading(col, command=lambda c=col: self._manage_sort_tree(c))
+                self.mg_tree.heading(
+                    col, command=lambda c=col: self._manage_sort_tree(c)
+                )
         if hasattr(self, "mg_class_cb"):
             self.mg_class_cb["values"] = ["全部班级"] + self.dm.classes
         if hasattr(self, "ex_tree"):
@@ -1521,8 +1756,15 @@ class App:
             return
         fig = Figure(figsize=(max(7, len(ranking) * 0.6), 4))
         ax = fig.add_subplot(111)
-        bar_colors = ["#FCD34D" if x["rank"] == 1 else "#F97316" if x["rank"] == 3 else "#3B82F6" for x in ranking]
-        ax.bar([x["name"] for x in ranking], [x["total"] for x in ranking], color=bar_colors)
+        bar_colors = [
+            "#FCD34D" if x["rank"] == 1 else "#F97316" if x["rank"] == 3 else "#3B82F6"
+            for x in ranking
+        ]
+        ax.bar(
+            [x["name"] for x in ranking],
+            [x["total"] for x in ranking],
+            color=bar_colors,
+        )
         ax.set_title("总分排名")
         fig.tight_layout()
         self._show_chart(fig)
@@ -1535,7 +1777,14 @@ class App:
         fig = Figure(figsize=(max(7, len(ranking) * 0.6), 4))
         ax = fig.add_subplot(111)
         avgs = [x["avg"] for x in ranking]
-        bar_colors = ["#10B981" if v >= 90 else "#3B82F6" if v >= 75 else "#F59E0B" if v >= 60 else "#EF4444" for v in avgs]
+        bar_colors = [
+            (
+                "#10B981"
+                if v >= 90
+                else "#3B82F6" if v >= 75 else "#F59E0B" if v >= 60 else "#EF4444"
+            )
+            for v in avgs
+        ]
         ax.bar([x["name"] for x in ranking], avgs, color=bar_colors)
         ax.axhline(60, color="red", ls="--")
         ax.axhline(90, color="green", ls="--")
@@ -1555,8 +1804,14 @@ class App:
             return
         fig = Figure(figsize=(6, 4))
         ax = fig.add_subplot(111)
-        ax.hist(analysis["scores"], bins=[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100], color="#3B82F6")
-        ax.axvline(analysis["avg"], color="red", ls="--", label=f"均分 {analysis['avg']}")
+        ax.hist(
+            analysis["scores"],
+            bins=[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+            color="#3B82F6",
+        )
+        ax.axvline(
+            analysis["avg"], color="red", ls="--", label=f"均分 {analysis['avg']}"
+        )
         ax.axvline(60, color="orange", ls=":", label="及格线")
         ax.set_title(f"{subject} 成绩分布")
         ax.legend()
@@ -1566,7 +1821,10 @@ class App:
         if len(self.dm.subjects) < 3:
             messagebox.showinfo("提示", "至少需要 3 个科目才能生成雷达图")
             return
-        avgs = [self.dm.analyze_subject(s)["avg"] if self.dm.analyze_subject(s) else 0 for s in self.dm.subjects]
+        avgs = [
+            self.dm.analyze_subject(s)["avg"] if self.dm.analyze_subject(s) else 0
+            for s in self.dm.subjects
+        ]
         n = len(self.dm.subjects)
         angles = np.linspace(0, 2 * np.pi, n, endpoint=False).tolist()
         fig = Figure(figsize=(5, 4))
@@ -1618,7 +1876,9 @@ class App:
             messagebox.showwarning("提示", "班级名称不能为空")
             return
         try:
-            existing = [s for s in self.dm.data["students"].values() if s.get("class") == name]
+            existing = [
+                s for s in self.dm.data["students"].values() if s.get("class") == name
+            ]
             if existing:
                 if not messagebox.askyesno("提示", f"班级「{name}」已存在，是否查看？"):
                     return
@@ -1643,7 +1903,13 @@ class App:
 
         classes = self.dm.classes
         if not classes:
-            tk.Label(self.content_area, text="暂无班级，请先在录入页面为学生设置班级", font=("微软雅黑", 11), bg="white", fg="#64748B").pack(pady=40)
+            tk.Label(
+                self.content_area,
+                text="暂无班级，请先在录入页面为学生设置班级",
+                font=("微软雅黑", 11),
+                bg="white",
+                fg="#64748B",
+            ).pack(pady=40)
             return
 
         # 插入数据
@@ -1651,14 +1917,19 @@ class App:
             stats = self.dm.get_class_stats(cls_name)
             if stats:
                 base_tag = "odd" if idx % 2 == 0 else "even"
-                self.cl_tree.insert("", "end", values=(
-                    cls_name,
-                    stats["count"],
-                    stats["total_avg"],
-                    stats["max_total"],
-                    stats["min_total"],
-                    "查看详情"
-                ), tags=(base_tag,))
+                self.cl_tree.insert(
+                    "",
+                    "end",
+                    values=(
+                        cls_name,
+                        stats["count"],
+                        stats["total_avg"],
+                        stats["max_total"],
+                        stats["min_total"],
+                        "查看详情",
+                    ),
+                    tags=(base_tag,),
+                )
 
     def _class_double_click(self, event: tk.Event) -> None:
         row_id = self.cl_tree.identify_row(event.y)
@@ -1676,12 +1947,24 @@ class App:
         dialog = tk.Toplevel(self.win)
         dialog.title(f"班级详情 - {class_name}")
         dialog.geometry("700x500")
-        tk.Label(dialog, text=f"🏫 {class_name}", font=("微软雅黑", 14, "bold")).pack(pady=8)
+        tk.Label(dialog, text=f"🏫 {class_name}", font=("微软雅黑", 14, "bold")).pack(
+            pady=8
+        )
         info_frame = tk.Frame(dialog, bg="#F0F9FF", bd=1, relief="solid")
         info_frame.pack(fill="x", padx=10, pady=5)
-        info_items = [("班级人数", f"{stats['count']} 人"), ("班级平均分", f"{stats['total_avg']:.1f} 分"), ("最高总分", f"{stats['max_total']:.1f} 分"), ("最低总分", f"{stats['min_total']:.1f} 分")]
+        info_items = [
+            ("班级人数", f"{stats['count']} 人"),
+            ("班级平均分", f"{stats['total_avg']:.1f} 分"),
+            ("最高总分", f"{stats['max_total']:.1f} 分"),
+            ("最低总分", f"{stats['min_total']:.1f} 分"),
+        ]
         for label, value in info_items:
-            tk.Label(info_frame, text=f"{label}：{value}", font=("微软雅黑", 10), bg="#F0F9FF").pack(side="left", padx=15, pady=8)
+            tk.Label(
+                info_frame,
+                text=f"{label}：{value}",
+                font=("微软雅黑", 10),
+                bg="#F0F9FF",
+            ).pack(side="left", padx=15, pady=8)
         columns = ["排名", "学号", "姓名", "总分", "平均分"]
         widths = [60, 120, 100, 100, 100]
         tree = ttk.Treeview(dialog, columns=columns, show="headings", height=15)
@@ -1698,7 +1981,18 @@ class App:
             tags = (base_tag,)
             if fail_tag:
                 tags = (base_tag, fail_tag)
-            tree.insert("", "end", values=(student["rank"], student["sid"], student["name"], student["total"], student["avg"]), tags=tags)
+            tree.insert(
+                "",
+                "end",
+                values=(
+                    student["rank"],
+                    student["sid"],
+                    student["name"],
+                    student["total"],
+                    student["avg"],
+                ),
+                tags=tags,
+            )
 
     # ========== 仪表盘刷新方法 ==========
 
@@ -1718,13 +2012,35 @@ class App:
                 w.destroy()
             if MAT_OK and self.dm.subjects:
                 try:
-                    avgs = [self.dm.analyze_subject(s)["avg"] if self.dm.analyze_subject(s) else 0 for s in self.dm.subjects]
+                    avgs = [
+                        (
+                            self.dm.analyze_subject(s)["avg"]
+                            if self.dm.analyze_subject(s)
+                            else 0
+                        )
+                        for s in self.dm.subjects
+                    ]
                     fig = Figure(figsize=(6, 3.5))
                     ax = fig.add_subplot(111)
-                    bar_colors = ["#6366F1", "#8B5CF6", "#3B82F6", "#10B981", "#F59E0B", "#EF4444"][:len(avgs)]
+                    bar_colors = [
+                        "#6366F1",
+                        "#8B5CF6",
+                        "#3B82F6",
+                        "#10B981",
+                        "#F59E0B",
+                        "#EF4444",
+                    ][: len(avgs)]
                     bars = ax.bar(self.dm.subjects, avgs, color=bar_colors, width=0.6)
                     for bar, val in zip(bars, avgs):
-                        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height()+0.5, f"{val:.1f}", ha="center", va="bottom", fontsize=9, fontweight="bold")
+                        ax.text(
+                            bar.get_x() + bar.get_width() / 2,
+                            bar.get_height() + 0.5,
+                            f"{val:.1f}",
+                            ha="center",
+                            va="bottom",
+                            fontsize=9,
+                            fontweight="bold",
+                        )
                     ax.set_ylim(0, 105)
                     ax.axhline(60, color="#EF4444", ls="--", alpha=0.7, label="及格线")
                     ax.set_title("科目均分对比", fontsize=12, fontweight="bold", pad=10)
@@ -1735,7 +2051,9 @@ class App:
                     canvas.get_tk_widget().pack(fill="both", expand=True)
                 except Exception as e:
                     logger.error("刷新仪表盘图表失败: %s", e)
-                    tk.Label(self.da_subj_frame, text=f"图表加载失败: {e}", bg="white").pack()
+                    tk.Label(
+                        self.da_subj_frame, text=f"图表加载失败: {e}", bg="white"
+                    ).pack()
             else:
                 tk.Label(self.da_subj_frame, text="暂无数据", bg="white").pack()
 
@@ -1747,7 +2065,11 @@ class App:
             if warnings:
                 for w in warnings[:10]:
                     fails = ", ".join([f"{s}:{sc}" for s, sc in w.get("fails", [])])
-                    tk.Label(self.da_warn_frame, text=f"⚠️ {w.get('name', '?')}({w.get('sid', '?')}) | {w.get('class', '')} | {fails}", bg="white", anchor="w").pack(fill="x", padx=5, pady=2)
+                    tk.Label(
+                        self.da_warn_frame,
+                        text=f"⚠️ {w.get('name', '?')}({w.get('sid', '?')}) | {w.get('class', '')} | {fails}",
+                        bg="white",
+                        anchor="w",
+                    ).pack(fill="x", padx=5, pady=2)
             else:
                 tk.Label(self.da_warn_frame, text="✓ 暂无成绩预警", bg="white").pack()
-
