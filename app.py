@@ -67,9 +67,9 @@ try:
     else:
         # Linux 或其他系统
         plt.rcParams["font.sans-serif"] = ["WenQuanYi Micro Hei", "DejaVu Sans"]
-        plt.rcParams["axes.unicode_minus"] = False
-        from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-        MAT_OK: bool = True
+    plt.rcParams["axes.unicode_minus"] = False
+    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+    MAT_OK: bool = True
 except ImportError as e:
     print(f"Matplotlib 导入失败: {e}")
     MAT_OK = False
