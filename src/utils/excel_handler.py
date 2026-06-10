@@ -186,19 +186,7 @@ def create_template(filepath: str, subjects: list[str]) -> bool:
 def import_from_excel(
     filepath: str, data_manager: Any
 ) -> Tuple[int, Optional[str]]:
-    """从 Excel 文件导入学生成绩数据。
-
-    支持 .xlsx（openpyxl）和 .xls（xlrd）格式。
-    自动识别表头中的学号、姓名、班级列，其余列作为科目。
-    新科目会自动添加到系统中。
-
-    Args:
-        filepath: Excel 文件路径。
-        data_manager: DataManager 实例，用于数据操作。
-
-    Returns:
-        (成功导入数量, 错误消息) 元组。成功时错误消息为 None。
-    """
+    """从 Excel 文件导入学生成绩数据。"""
     if not EX_OK:
         msg = "请执行：pip install openpyxl"
         logger.error(msg)
@@ -219,46 +207,34 @@ def import_from_excel(
         if filepath.lower().endswith(".xlsx"):
             try:
                 import openpyxl
-
-                wb = openpyxl.load_workbook(
-                    filepath, data_only=True, read_only=True
-                )
+                wb = openpyxl.load_workbook(filepath, data_only=True, read_only=True)
                 ws = wb.active
                 if ws is None:
                     return (0, "无法读取工作表")
                 rows = list(ws.iter_rows(values_only=True))
                 wb.close()
-                logger.info(
-                    "读取 .xlsx 文件: %s (%d 行)", filepath, len(rows)
-                )
+                logger.info("读取 .xlsx 文件: %s (%d 行)", filepath, len(rows))
             except OSError as e:
                 logger.error("读取 .xlsx 文件失败: %s - %s", filepath, e)
                 return (0, f"无法读取文件: {e}")
             except Exception as e:
-                logger.error(
-                    "解析 .xlsx 文件失败: %s - %s", filepath, e
-                )
+                logger.error("解析 .xlsx 文件失败: %s - %s", filepath, e)
                 return (0, f"文件格式不正确: {e}")
         else:
             try:
                 import xlrd
-
                 rb = xlrd.open_workbook(filepath)
                 sh = rb.sheet_by_index(0)
                 rows = [
                     [str(c).strip() if c else "" for c in sh.row_values(i)]
                     for i in range(sh.nrows)
                 ]
-                logger.info(
-                    "读取 .xls 文件: %s (%d 行)", filepath, len(rows)
-                )
+                logger.info("读取 .xls 文件: %s (%d 行)", filepath, len(rows))
             except OSError as e:
                 logger.error("读取 .xls 文件失败: %s - %s", filepath, e)
                 return (0, f"无法读取文件: {e}")
             except Exception as e:
-                logger.error(
-                    "解析 .xls 文件失败: %s - %s", filepath, e
-                )
+                logger.error("解析 .xls 文件失败: %s - %s", filepath, e)
                 return (0, f"文件格式不正确: {e}")
 
         if len(rows) < 2:
@@ -270,20 +246,28 @@ def import_from_excel(
         if not any(header):
             return (0, "表头为空，无法识别列")
 
-        id_idx = next(
-            (i for i, h in enumerate(header) if "学号" in str(h)), 0
-        )
-        name_idx = next(
-            (i for i, h in enumerate(header) if "姓名" in str(h)), 1
-        )
-        class_idx = next(
-            (i for i, h in enumerate(header) if "班级" in str(h)), 2
-        )
+        id_idx = next((i for i, h in enumerate(header) if "学号" in str(h)), 0)
+        name_idx = next((i for i, h in enumerate(header) if "姓名" in str(h)), 1)
+
+        # ========== 明确跳过列：只跳过学号和姓名 ==========
+        skip_idxs = {id_idx, name_idx}
+
+        # 处理班级列
+        if "班级" in header:
+            class_idx = next((i for i, h in enumerate(header) if "班级" in str(h)), 2)
+            skip_idxs.add(class_idx)
+            default_class_name = None
+        else:
+            # 没有班级列，使用默认班级
+            default_class_name = "24计软技师"
+            logger.info(f"未找到班级列，所有学生将自动归入: {default_class_name}")
+        # ==============================================
 
         # 解析科目列
         subject_idx: dict[str, int] = {}
         for i, h in enumerate(header):
-            if i not in (id_idx, name_idx, class_idx) and h:
+            # 只要不是 skip_idxs 里包含的列，且不是总分/总学分，就作为科目列
+            if i not in skip_idxs and h and h not in ["总分", "总学分"]:
                 if h not in data_manager.subjects:
                     try:
                         data_manager.add_subject(h)
@@ -302,81 +286,41 @@ def import_from_excel(
         import_errors: list[str] = []
         for row_idx, row in enumerate(rows[1:], start=2):
             try:
-                # 跳过空行
                 values = [c for c in row]
-                if all(
-                    not str(c).strip() if c is not None else True
-                    for c in values
-                ):
+                if all(not str(c).strip() if c is not None else True for c in values):
                     continue
 
-                # 获取学号
-                student_id = (
-                    str(values[id_idx]).strip()
-                    if id_idx < len(values) and values[id_idx] is not None
-                    else ""
-                )
+                student_id = str(values[id_idx]).strip() if id_idx < len(values) and values[id_idx] is not None else ""
                 if not student_id:
                     continue
 
-                # 获取姓名和班级
-                name = (
-                    str(values[name_idx]).strip()
-                    if name_idx < len(values) and values[name_idx] is not None
-                    else ""
-                )
-                class_name = (
-                    str(values[class_idx]).strip()
-                    if class_idx < len(values)
-                    and values[class_idx] is not None
-                    else ""
-                )
+                name = str(values[name_idx]).strip() if name_idx < len(values) and values[name_idx] is not None else ""
 
-                # 获取成绩（带范围校验）
+                # ========== 获取班级名称 ==========
+                if default_class_name is not None:
+                    class_name = default_class_name
+                else:
+                    class_name = str(values[class_idx]).strip() if class_idx < len(values) and values[class_idx] is not None else ""
+                # ===================================
+
                 scores: dict[str, float] = {}
                 for subject, idx in subject_idx.items():
-                    value = (
-                        str(values[idx]).strip()
-                        if idx < len(values) and values[idx] is not None
-                        else ""
-                    )
+                    value = str(values[idx]).strip() if idx < len(values) and values[idx] is not None else ""
                     if value and value != "None":
                         try:
                             parsed = float(value)
                             if 0 <= parsed <= 100:
                                 scores[subject] = parsed
                             else:
-                                logger.warning(
-                                    "第 %d 行 %s 成绩超出范围: %s",
-                                    row_idx, subject, parsed,
-                                )
+                                logger.warning("第 %d 行 %s 成绩超出范围: %s", row_idx, subject, parsed)
                         except ValueError:
-                            logger.warning(
-                                "第 %d 行 %s 成绩无效: %s",
-                                row_idx, subject, value,
-                            )
+                            logger.warning("第 %d 行 %s 成绩无效: %s", row_idx, subject, value)
 
-                # 添加或更新学生（兼容新旧 API）
                 try:
                     if data_manager.exists(student_id):
-                        if hasattr(data_manager, "update_student"):
-                            data_manager.update_student(
-                                student_id, name, class_name
-                            )
-                        elif hasattr(data_manager, "upd_stu"):
-                            data_manager.upd_stu(
-                                student_id, name, class_name
-                            )
+                        data_manager.update_student(student_id, name, class_name)
                     else:
-                        if hasattr(data_manager, "add_student"):
-                            data_manager.add_student(
-                                student_id, name, class_name
-                            )
-                        elif hasattr(data_manager, "add_stu"):
-                            data_manager.add_stu(
-                                student_id, name, class_name
-                            )
-
+                        data_manager.add_student(student_id, name, class_name)
                     data_manager.batch_set(student_id, scores)
                     imported += 1
                 except Exception as e:
@@ -390,10 +334,7 @@ def import_from_excel(
                 logger.warning(msg)
 
         if import_errors:
-            logger.warning(
-                "导入完成，共 %d 条成功，%d 条失败",
-                imported, len(import_errors),
-            )
+            logger.warning("导入完成，共 %d 条成功，%d 条失败", imported, len(import_errors))
 
         return (imported, None)
 
