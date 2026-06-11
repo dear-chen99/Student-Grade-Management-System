@@ -1179,7 +1179,6 @@ class App:
             delattr(self, "excel_frame")
 
         # ====== 2. 重新创建表格容器 ======
-        # 使用传入的 parent（即 _excel_parent）作为父容器
         self.excel_frame = tk.Frame(parent, bg="white")
         self.excel_frame.pack(fill="both", expand=True)
 
@@ -1214,11 +1213,27 @@ class App:
         h_scroll.pack(side="bottom", fill="x")
         self.ex_tree.pack(fill="both", expand=True)
 
-        # ========== 核心修改：直接插入数据，不使用 after_idle ==========
+        # ========== ✅ 核心修改：无数据时填充 30 个空行 ==========
+        # 获取所有学生数据
+        student_items = list(self.dm.students.items())
+
+        if not student_items:
+            # 如果没有学生数据，生成 30 个空行
+            for i in range(30):
+                # 生成对应列数的空值（全部为空字符串）
+                empty_vals = ["" for _ in range(len(columns))]
+                # 应用斑马纹样式
+                tag = "odd" if i % 2 == 0 else "even"
+                # 插入空行
+                self.ex_tree.insert("", "end", values=empty_vals, tags=(tag,))
+            # 填充完空行后直接返回，不再执行下面的数据插入
+            self.win.update_idletasks()
+            return
+        # ========================================================
+
+        # ========== 以下代码只在有数据时执行 ==========
         try:
-            for idx, (sid, stu) in enumerate(
-                sorted(self.dm.students.items(), key=lambda x: x[0])
-            ):
+            for idx, (sid, stu) in enumerate(sorted(student_items, key=lambda x: x[0])):
                 st = self.dm.stats(sid)
                 if st is None:
                     continue
@@ -1230,13 +1245,12 @@ class App:
                 base_tag = "odd" if idx % 2 == 0 else "even"
                 self.ex_tree.insert("", "end", values=vals, tags=(base_tag,))
         except Exception as e:
-            # 如果插入时发生意外错误，捕获并打印，防止程序直接崩掉
             print(f"数据插入时发生错误: {e}")
             import traceback
 
             traceback.print_exc()
 
-        # ========== 强制刷新布局，确保按钮和表格紧凑显示 ==========
+        # 强制刷新布局
         self.win.update_idletasks()
 
     def _export_template(self) -> None:
@@ -1389,6 +1403,18 @@ class App:
                     continue
 
             rows.append(vals)
+
+        # ========== 核心修改：如果没有数据，生成 30 个空行 ==========
+        if not rows:
+            for i in range(30):
+                # 生成 30 列的空值（对应 "学号", "姓名", "班级", ... "总分", "平均分"）
+                empty_vals = ["" for _ in range(len(columns))]
+                # 应用斑马纹样式
+                tag = "odd" if i % 2 == 0 else "even"
+                # 插入空行
+                self.mg_tree.insert("", "end", values=empty_vals, tags=(tag,))
+            return  # 填充完空行后直接返回，不再执行下面的排序和插入
+        # ============================================================
 
         # 应用排序
         if not hasattr(self, "_mg_sort_col") or not self._mg_sort_col:
@@ -2039,24 +2065,27 @@ class App:
 
     def _refresh_class_tree(self) -> None:
         """刷新班级列表表格数据。"""
-        # 清空现有数据，不要重新创建表格
+        # 1. 清空现有数据
         if self.cl_tree:
             self.cl_tree.delete(*self.cl_tree.get_children())
         else:
             return  # 表格还没创建，直接返回
 
         classes = self.dm.classes
-        if not classes:
-            tk.Label(
-                self.content_area,
-                text="暂无班级，请先在录入页面为学生设置班级",
-                font=("微软雅黑", 11),
-                bg="white",
-                fg="#64748B",
-            ).pack(pady=40)
-            return
 
-        # 插入数据
+        # ========== 核心修改开始 ==========
+        if not classes:
+            # 如果没有班级数据，自动填充 30 个空行
+            for i in range(30):
+                # 循环产生斑马纹
+                tag = "odd" if i % 2 == 0 else "even"
+                # 根据你定义的6个列，填充空值：["班级名称", "学生人数", "平均分", "最高分", "最低分", "操作"]
+                empty_vals = ["", "", "", "", "", ""]
+                self.cl_tree.insert("", "end", values=empty_vals, tags=(tag,))
+            return  # 填充完直接返回，不再显示下方的文字
+        # ========== 核心修改结束 ==========
+
+        # --- 以下代码是在"有真实班级数据"时执行的 ---
         for idx, cls_name in enumerate(classes):
             stats = self.dm.get_class_stats(cls_name)
             if stats:
@@ -2070,7 +2099,7 @@ class App:
                         stats["total_avg"],
                         stats["max_total"],
                         stats["min_total"],
-                        "查看详情",
+                        "查看详情",  # 对应的"操作"列
                     ),
                     tags=(base_tag,),
                 )
