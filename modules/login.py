@@ -14,6 +14,11 @@ class LoginWindow(ctk.CTk):
         self.title("登录 - 学生成绩管理系统")
         self.geometry("900x550")
         self.resizable(False, False)
+
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+        self.iconbitmap(os.path.join(project_root, "img", "icon.ico"))
+
         self.login_success = False
 
         # 居中
@@ -27,9 +32,7 @@ class LoginWindow(ctk.CTk):
         # 隐藏窗口，后台渲染
         self.withdraw()
 
-        # 加载图片
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.image_path = os.path.join(self.current_dir, "bg.jpeg")
+        self.image_path = os.path.join(project_root, "img", "bg.jpeg")
         self.bg_image = None
         self.photo_image = None
         self._preload_background()
@@ -38,7 +41,7 @@ class LoginWindow(ctk.CTk):
         self.canvas = Canvas(self, bg="#2C3E50", highlightthickness=0)
         self.canvas.pack(fill="both", expand=True)
 
-        self.card = ctk.CTkFrame(self, fg_color="white", corner_radius=20, width=400, height=450)
+        self.card = ctk.CTkFrame(self, fg_color="white", corner_radius=0, width=400, height=450)
         self.title_label = ctk.CTkLabel(self.card, text="欢迎登录", font=("微软雅黑", 18, "bold"), text_color="#2C3E50")
         self.title_label.pack(pady=(30, 20))
 
@@ -54,8 +57,8 @@ class LoginWindow(ctk.CTk):
             font=("微软雅黑", 14, "bold"),
             height=40,
             corner_radius=10,
-            fg_color="#2980B9",
-            hover_color="#0374BF",
+            fg_color="#0374BF",
+            hover_color="#2980B9",
             command=self._login_action
         )
         self.login_button.pack(pady=20, padx=90, fill="x")

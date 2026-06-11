@@ -125,6 +125,12 @@ class App:
         self.win.minsize(WINDOW_CONFIG["min_width"], WINDOW_CONFIG["min_height"])
         self.win.configure(bg=COLORS["bg"])
 
+        icon_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "img", "app_icon.ico"
+        )
+        if os.path.exists(icon_path):
+            self.win.iconbitmap(icon_path)
+
         # 自定义样式：强制顶部横幅为青绿色
         style = Style()
         style.configure("Header.TFrame", background=TEAL_COLOR)
@@ -226,7 +232,7 @@ class App:
         self.page_builders = {
             "📊 仪表盘": self._build_dashboard_page,
             "📝 录入": self._build_input_page,
-            "📥 Excel": self._build_excel_page,
+            "📥 导入与导出": self._build_excel_page,
             "🏫 班级": self._build_class_page,
             "📁 管理": self._build_manage_page,
             "🔍 查询": self._build_search_page,
@@ -242,6 +248,7 @@ class App:
 
         def cmd(b=builder, btn_idx=idx):
             self._switch_page(b)
+            self._set_active_button(btn_idx)
             self._set_active_button(btn_idx)
 
         btn = ttk.Button(sidebar, text=text, style="Sidebar.TButton", command=cmd)
@@ -280,6 +287,7 @@ class App:
             )
 
             btn.pack(fill="x", padx=15, ipady=8)
+            btn.pack(fill="x", padx=15, ipady=5)
             self.nav_buttons.append(btn)
 
         # 默认选中第一个【仪表盘】按钮
@@ -460,15 +468,19 @@ class App:
 
     def _build_excel_page(self, parent: tk.Frame) -> None:
         """构建 Excel 导入导出页面。"""
+        # 创建主内容容器
+        self._excel_parent = tk.Frame(parent, bg="white")
+        self._excel_parent.pack(fill="both", expand=True)
+
         tk.Label(
-            parent,
+            self._excel_parent,
             text="📥 Excel 导入导出",
             font=("微软雅黑", 14, "bold"),
             bg="white",
         ).pack(pady=4)
 
-        btn_frame = tk.Frame(parent, bg="white")
-        btn_frame.pack()
+        btn_frame = tk.Frame(self._excel_parent, bg="white")
+        btn_frame.pack(pady=(0, 15))
         ttk.Button(
             btn_frame,
             text="📥 模板",
@@ -494,11 +506,7 @@ class App:
             command=self._export_csv,
         ).pack(side="left", padx=4)
 
-        subjects = self.dm.subjects
-        columns = ["学号", "姓名", "班级"] + subjects + ["总分", "平均分"]
-        widths = [100, 90, 90] + self._calc_subject_widths(subjects) + [80, 80]
-        self.ex_tree = self._create_treeview(parent, columns, widths, 16)
-        self._refresh_excel_tree()
+        self._refresh_excel_tree(self._excel_parent)
 
     # ========== 班级管理页面 ==========
 
@@ -624,6 +632,15 @@ class App:
             style="danger.TButton",
             command=self._manage_delete_selected,
         ).pack(side="left", padx=4)
+
+        # ========== 新增：重置所有按钮 ==========
+        ttk.Button(
+            btn_frame,
+            text="♻️ 重置",
+            style="danger.TButton",
+            command=self._reset_all_data,
+        ).pack(side="left", padx=4)
+        # =======================================
 
         subjects = self.dm.subjects
         columns = ["学号", "姓名", "班级"] + subjects + ["总分", "平均分"]
@@ -989,7 +1006,8 @@ class App:
         if hasattr(self, "mg_tree"):
             self._refresh_manage_tree()
         if hasattr(self, "ex_tree"):
-            self._refresh_excel_tree()
+            if hasattr(self, "_excel_parent"):
+                self._refresh_excel_tree(self._excel_parent)
         if hasattr(self, "se_list"):
             self._refresh_search_list()
         if hasattr(self, "da_cards"):
@@ -1153,21 +1171,73 @@ class App:
 
     # ========== Excel 页面方法 ==========
 
-    def _refresh_excel_tree(self) -> None:
-        self.ex_tree.delete(*self.ex_tree.get_children())
-        for idx, (sid, stu) in enumerate(
-            sorted(self.dm.students.items(), key=lambda x: x[0])
-        ):
-            st = self.dm.stats(sid)
-            if st is None:
-                continue
-            vals = (
-                [sid, stu["name"], stu.get("class", "")]
-                + [stu["scores"].get(s, "-") for s in self.dm.subjects]
-                + [st["total"], st["avg"]]
-            )
-            base_tag = "odd" if idx % 2 == 0 else "even"
-            self.ex_tree.insert("", "end", values=vals, tags=(base_tag,))
+    def _refresh_excel_tree(self, parent) -> None:
+        """刷新 Excel 导入导出页面的表格（包含列头和行数据）"""
+        # ====== 1. 清理旧的表格容器 ======
+        if hasattr(self, "excel_frame"):
+            self.excel_frame.destroy()
+            delattr(self, "excel_frame")
+
+        # ====== 2. 重新创建表格容器 ======
+        # 使用传入的 parent（即 _excel_parent）作为父容器
+        self.excel_frame = tk.Frame(parent, bg="white")
+        self.excel_frame.pack(fill="both", expand=True)
+
+        # ====== 3. 获取最新的科目列表 ======
+        subjects = self.dm.subjects
+        columns = ["学号", "姓名", "班级"] + subjects + ["总分", "平均分"]
+        widths = [100, 90, 90] + self._calc_subject_widths(subjects) + [80, 80]
+
+        # ====== 4. 创建新的 Treeview ======
+        self.ex_tree = ttk.Treeview(
+            self.excel_frame, columns=columns, show="headings", height=16
+        )
+        v_scroll = ttk.Scrollbar(
+            self.excel_frame, orient="vertical", command=self.ex_tree.yview
+        )
+        h_scroll = ttk.Scrollbar(
+            self.excel_frame, orient="horizontal", command=self.ex_tree.xview
+        )
+        self.ex_tree.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
+
+        # ====== 5. 设置列宽和标题 ======
+        for col, width in zip(columns, widths):
+            self.ex_tree.heading(col, text=col)
+            self.ex_tree.column(col, width=width, anchor="center")
+
+        # ====== 6. 配置斑马纹样式 ======
+        self.ex_tree.tag_configure("odd", background="#F8FAFC")
+        self.ex_tree.tag_configure("even", background="#FFFFFF")
+
+        # ====== 7. 放置滚动条 ======
+        v_scroll.pack(side="right", fill="y")
+        h_scroll.pack(side="bottom", fill="x")
+        self.ex_tree.pack(fill="both", expand=True)
+
+        # ========== 核心修改：直接插入数据，不使用 after_idle ==========
+        try:
+            for idx, (sid, stu) in enumerate(
+                sorted(self.dm.students.items(), key=lambda x: x[0])
+            ):
+                st = self.dm.stats(sid)
+                if st is None:
+                    continue
+                vals = (
+                    [sid, stu["name"], stu.get("class", "")]
+                    + [stu["scores"].get(s, "-") for s in subjects]
+                    + [st["total"], st["avg"]]
+                )
+                base_tag = "odd" if idx % 2 == 0 else "even"
+                self.ex_tree.insert("", "end", values=vals, tags=(base_tag,))
+        except Exception as e:
+            # 如果插入时发生意外错误，捕获并打印，防止程序直接崩掉
+            print(f"数据插入时发生错误: {e}")
+            import traceback
+
+            traceback.print_exc()
+
+        # ========== 强制刷新布局，确保按钮和表格紧凑显示 ==========
+        self.win.update_idletasks()
 
     def _export_template(self) -> None:
         if not self._check_excel_available():
@@ -1197,9 +1267,18 @@ class App:
             logger.error("Excel 导入失败: %s - %s", filepath, error)
             messagebox.showerror("导入失败", error)
         else:
-            self._refresh_excel_tree()
-            self._update_status()
-            self._refresh_subject_ui()
+            # ====== 用 try...except 包裹刷新逻辑，防止程序静默崩溃 ======
+            try:
+                self._refresh_all_pages()
+                self._update_status()
+                self._refresh_subject_ui()
+            except Exception as e:
+                import traceback
+
+                traceback.print_exc()  # 在终端打印详细报错信息
+                logger.warning(f"导入数据后刷新界面时出现可忽略的错误: {e}")
+            # ===========================================================
+
             messagebox.showinfo("完成", f"成功导入 {count} 名学生")
             logger.info("Excel 导入成功: %s (%d 条)", filepath, count)
 
@@ -1484,11 +1563,81 @@ class App:
         selected = self.mg_tree.selection()
         if not selected:
             return
-        sid = self.mg_tree.item(selected[0], "values")[0]
-        if messagebox.askyesno("确认", f"确定删除学生 {sid} 吗？"):
-            self.dm.del_stu(sid)
+
+        # 获取所有选中的学号
+        selected_sids = [self.mg_tree.item(item, "values")[0] for item in selected]
+
+        # 确认删除
+        if messagebox.askyesno(
+            "确认删除", f"确定要删除选中的 {len(selected_sids)} 名学生吗？"
+        ):
+            for sid in selected_sids:
+                self.dm.del_stu(sid)
             self._refresh_manage_tree()
             self._update_status()
+            self._show_status(f"已删除 {len(selected_sids)} 名学生", "ok")
+
+    def _reset_all_data(self) -> None:
+        """重置所有数据到初始状态（删除所有学生、科目、成绩）"""
+        if messagebox.askyesno(
+            "确认重置",
+            "确定要删除所有数据并重置系统吗？\n此操作将删除所有学生、科目和成绩，且不可撤销！",
+        ):
+            # 1. 清空 DataManager 的数据
+            self.dm.data = {"subjects": [], "students": {}, "history": []}
+
+            # 2. 保存重置后的数据
+            self.dm.save()
+
+            # 3. 强制刷新成绩管理表格的表头（关键修复）
+            if hasattr(self, "mg_tree"):
+                # 获取当前表格的父容器，以便稍后重新创建
+                parent = self.mg_tree.master
+                # 销毁旧的表格（包括表头）
+                self.mg_tree.destroy()
+
+                # 根据新的空科目列表重新创建表格
+                new_subjects = self.dm.subjects
+                columns = ["学号", "姓名", "班级"] + new_subjects + ["总分", "平均分"]
+                widths = (
+                    [110, 90, 90] + self._calc_subject_widths(new_subjects) + [80, 80]
+                )
+
+                # 创建新的 Treeview
+                self.mg_tree = ttk.Treeview(
+                    parent, columns=columns, show="headings", height=18
+                )
+                # 重新配置预警标签
+                self.mg_tree.tag_configure("fail", foreground="#EF4444")
+                self.mg_tree.tag_configure("warn", foreground="#F59E0B")
+                self.mg_tree.tag_configure("good", foreground="#10B981")
+                self.mg_tree.tag_configure("empty_all", foreground="#9CA3AF")
+                # 重新绑定双击事件
+                self.mg_tree.bind("<Double-1>", self._manage_cell_double_click)
+
+                # 重新设置列宽和标题
+                for col, width in zip(columns, widths):
+                    self.mg_tree.heading(col, text=col)
+                    self.mg_tree.column(col, width=width, anchor="center")
+
+                # 重新绑定列头点击排序
+                for col in columns:
+                    self.mg_tree.heading(
+                        col, command=lambda c=col: self._manage_sort_tree(c)
+                    )
+
+                # 将新的表格放入父容器
+                self.mg_tree.pack(fill="both", expand=True)
+
+            # 4. 刷新所有页面（包括新创建的成绩管理表格）
+            self._refresh_all_pages()
+
+            # 5. 更新状态栏
+            self._update_status()
+            self._show_status("系统已重置为初始状态", "ok")
+
+            # 6. 记录日志
+            logger.info("所有数据已重置")
 
     # ========== 查询页面方法 ==========
 
@@ -1728,13 +1877,8 @@ class App:
                 )
         if hasattr(self, "mg_class_cb"):
             self.mg_class_cb["values"] = ["全部班级"] + self.dm.classes
-        if hasattr(self, "ex_tree"):
-            self._refresh_excel_tree()
-            widths = self._calc_subject_widths(subjects)
-            cols = self.ex_tree["columns"]
-            for i, w in enumerate(widths, start=3):
-                if i < len(cols) - 2:
-                    self.ex_tree.column(cols[i], width=w, minwidth=50)
+        if hasattr(self, "ex_tree") and hasattr(self, "_excel_parent"):
+            self._refresh_excel_tree(self._excel_parent)
 
     # ========== 图表页面方法 ==========
 

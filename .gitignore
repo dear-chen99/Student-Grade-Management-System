@@ -1,7 +1,6 @@
 __pycache__/
 *.pyc
-data/*.json
-data/*.bak
+data/
 .idea/
 .vscode/
 .pytest_cache/
