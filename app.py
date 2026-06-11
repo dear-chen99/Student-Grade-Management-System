@@ -1638,6 +1638,9 @@ class App:
                 self.mg_tree.tag_configure("warn", foreground="#F59E0B")
                 self.mg_tree.tag_configure("good", foreground="#10B981")
                 self.mg_tree.tag_configure("empty_all", foreground="#9CA3AF")
+                # 重新配置斑马纹
+                self.mg_tree.tag_configure("odd", background="#F8FAFC")
+                self.mg_tree.tag_configure("even", background="#FFFFFF")
                 # 重新绑定双击事件
                 self.mg_tree.bind("<Double-1>", self._manage_cell_double_click)
 
