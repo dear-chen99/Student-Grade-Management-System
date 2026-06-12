@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+"""学生成绩管理系统主程序入口."""
 
 from app import App
 from modules.login import LoginWindow

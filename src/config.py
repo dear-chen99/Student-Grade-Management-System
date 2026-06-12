@@ -1,7 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-配置模块 - Configuration Module
+配置模块 - Configuration Module.
 
 包含系统常量、颜色配置和全局设置。
 """

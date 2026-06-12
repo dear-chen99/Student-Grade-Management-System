@@ -1,7 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Excel 处理模块 - Excel Handler Module
+Excel 处理模块 - Excel Handler Module.
 
 提供 Excel 文件的导入导出功能，支持 .xlsx 和 .xls 格式。
 """
@@ -29,25 +27,29 @@ if not logger.handlers:
 # 自定义异常类
 # ------------------------------------------------------------------
 
+
 class ExcelHandlerError(Exception):
-    """Excel 处理模块基础异常类。"""
+    """Excel 处理模块基础异常类."""
 
     def __init__(self, message: str = "Excel 处理错误") -> None:
+        """初始化异常实例."""
         super().__init__(message)
         self.message = message
 
 
 class ExcelLibraryNotFoundError(ExcelHandlerError):
-    """Excel 库未安装错误。"""
+    """Excel 库未安装错误."""
 
     def __init__(self) -> None:
+        """初始化 Excel 库未安装错误."""
         super().__init__("请执行：pip install openpyxl 安装 Excel 处理库")
 
 
 class ExcelReadError(ExcelHandlerError):
-    """Excel 文件读取错误。"""
+    """Excel 文件读取错误."""
 
     def __init__(self, filepath: str, reason: str = "") -> None:
+        """初始化 Excel 读取错误，记录文件路径和原因."""
         msg = f"无法读取 Excel 文件: {filepath}"
         if reason:
             msg += f" ({reason})"
@@ -55,9 +57,10 @@ class ExcelReadError(ExcelHandlerError):
 
 
 class ExcelWriteError(ExcelHandlerError):
-    """Excel 文件写入错误。"""
+    """Excel 文件写入错误."""
 
     def __init__(self, filepath: str, reason: str = "") -> None:
+        """初始化 Excel 写入错误，记录文件路径和原因."""
         msg = f"无法写入 Excel 文件: {filepath}"
         if reason:
             msg += f" ({reason})"
@@ -65,9 +68,10 @@ class ExcelWriteError(ExcelHandlerError):
 
 
 class ExcelFormatError(ExcelHandlerError):
-    """Excel 文件格式错误。"""
+    """Excel 文件格式错误."""
 
     def __init__(self, filepath: str, reason: str = "") -> None:
+        """初始化 Excel 格式错误，记录文件路径和原因."""
         msg = f"Excel 文件格式不正确: {filepath}"
         if reason:
             msg += f" ({reason})"
@@ -75,9 +79,10 @@ class ExcelFormatError(ExcelHandlerError):
 
 
 class ExcelEmptyError(ExcelHandlerError):
-    """Excel 文件内容为空错误。"""
+    """Excel 文件内容为空错误."""
 
     def __init__(self, filepath: str = "") -> None:
+        """初始化 Excel 内容为空错误，记录文件路径."""
         base = f"文件内容为空: {filepath}" if filepath else "文件内容为空"
         super().__init__(base)
 
@@ -103,7 +108,7 @@ except ImportError:
 
 
 def is_excel_available() -> bool:
-    """检查 Excel 处理库是否可用。
+    """检查 Excel 处理库是否可用.
 
     Returns:
         True 如果 openpyxl 或 xlrd 可用。
@@ -112,7 +117,7 @@ def is_excel_available() -> bool:
 
 
 def _validate_filepath(filepath: str) -> str:
-    """校验文件路径的合法性。
+    """校验文件路径的合法性.
 
     Args:
         filepath: 文件路径。
@@ -135,8 +140,9 @@ def _validate_filepath(filepath: str) -> str:
 # 公共方法
 # ------------------------------------------------------------------
 
+
 def create_template(filepath: str, subjects: list[str]) -> bool:
-    """创建 Excel 成绩导入模板。
+    """创建 Excel 成绩导入模板.
 
     生成包含表头（学号、姓名、班级 + 科目）和一行示例数据的 .xlsx 文件。
 
@@ -183,10 +189,8 @@ def create_template(filepath: str, subjects: list[str]) -> bool:
         return False
 
 
-def import_from_excel(
-    filepath: str, data_manager: Any
-) -> Tuple[int, Optional[str]]:
-    """从 Excel 文件导入学生成绩数据。"""
+def import_from_excel(filepath: str, data_manager: Any) -> Tuple[int, Optional[str]]:
+    """从 Excel 文件导入学生成绩数据."""
     if not EX_OK:
         msg = "请执行：pip install openpyxl"
         logger.error(msg)
@@ -207,6 +211,7 @@ def import_from_excel(
         if filepath.lower().endswith(".xlsx"):
             try:
                 import openpyxl
+
                 wb = openpyxl.load_workbook(filepath, data_only=True, read_only=True)
                 ws = wb.active
                 if ws is None:
@@ -223,6 +228,7 @@ def import_from_excel(
         else:
             try:
                 import xlrd
+
                 rb = xlrd.open_workbook(filepath)
                 sh = rb.sheet_by_index(0)
                 rows = [
@@ -290,31 +296,54 @@ def import_from_excel(
                 if all(not str(c).strip() if c is not None else True for c in values):
                     continue
 
-                student_id = str(values[id_idx]).strip() if id_idx < len(values) and values[id_idx] is not None else ""
+                student_id = (
+                    str(values[id_idx]).strip()
+                    if id_idx < len(values) and values[id_idx] is not None
+                    else ""
+                )
                 if not student_id:
                     continue
 
-                name = str(values[name_idx]).strip() if name_idx < len(values) and values[name_idx] is not None else ""
+                name = (
+                    str(values[name_idx]).strip()
+                    if name_idx < len(values) and values[name_idx] is not None
+                    else ""
+                )
 
                 # ========== 获取班级名称 ==========
                 if default_class_name is not None:
                     class_name = default_class_name
                 else:
-                    class_name = str(values[class_idx]).strip() if class_idx < len(values) and values[class_idx] is not None else ""
+                    class_name = (
+                        str(values[class_idx]).strip()
+                        if class_idx < len(values) and values[class_idx] is not None
+                        else ""
+                    )
                 # ===================================
 
                 scores: dict[str, float] = {}
                 for subject, idx in subject_idx.items():
-                    value = str(values[idx]).strip() if idx < len(values) and values[idx] is not None else ""
+                    value = (
+                        str(values[idx]).strip()
+                        if idx < len(values) and values[idx] is not None
+                        else ""
+                    )
                     if value and value != "None":
                         try:
                             parsed = float(value)
                             if 0 <= parsed <= 100:
                                 scores[subject] = parsed
                             else:
-                                logger.warning("第 %d 行 %s 成绩超出范围: %s", row_idx, subject, parsed)
+                                logger.warning(
+                                    "第 %d 行 %s 成绩超出范围: %s",
+                                    row_idx,
+                                    subject,
+                                    parsed,
+                                )
                         except ValueError:
-                            logger.warning("第 %d 行 %s 成绩无效: %s", row_idx, subject, value)
+                            logger.warning(
+                                "第 %d 行 %s 成绩无效: %s", row_idx, subject, value
+                            )
 
                 try:
                     if data_manager.exists(student_id):
@@ -334,7 +363,9 @@ def import_from_excel(
                 logger.warning(msg)
 
         if import_errors:
-            logger.warning("导入完成，共 %d 条成功，%d 条失败", imported, len(import_errors))
+            logger.warning(
+                "导入完成，共 %d 条成功，%d 条失败", imported, len(import_errors)
+            )
 
         return (imported, None)
 
@@ -344,7 +375,7 @@ def import_from_excel(
 
 
 def export_to_excel(filepath: str, data_manager: Any) -> bool:
-    """导出成绩数据到 Excel 文件。
+    """导出成绩数据到 Excel 文件.
 
     包含排名、学号、姓名、班级、各科成绩、总分、平均分和等级。
 
@@ -376,21 +407,13 @@ def export_to_excel(filepath: str, data_manager: Any) -> bool:
         ws.title = "成绩表"
 
         subjects = (
-            list(data_manager.subjects)
-            if hasattr(data_manager, "subjects")
-            else []
+            list(data_manager.subjects) if hasattr(data_manager, "subjects") else []
         )
         ws.append(
-            ["排名", "学号", "姓名", "班级"]
-            + subjects
-            + ["总分", "平均分", "等级"]
+            ["排名", "学号", "姓名", "班级"] + subjects + ["总分", "平均分", "等级"]
         )
 
-        ranking = (
-            data_manager.ranking()
-            if hasattr(data_manager, "ranking")
-            else []
-        )
+        ranking = data_manager.ranking() if hasattr(data_manager, "ranking") else []
         for rank_data in ranking:
             avg = rank_data.get("avg", 0)
             if avg >= 90:
@@ -403,12 +426,13 @@ def export_to_excel(filepath: str, data_manager: Any) -> bool:
                 level = "不及格"
 
             row_data = (
-                [rank_data.get("rank", ""), rank_data.get("id", ""),
-                 rank_data.get("name", ""), rank_data.get("class", "")]
-                + [
-                    rank_data.get("scores", {}).get(s, "-")
-                    for s in subjects
+                [
+                    rank_data.get("rank", ""),
+                    rank_data.get("id", ""),
+                    rank_data.get("name", ""),
+                    rank_data.get("class", ""),
                 ]
+                + [rank_data.get("scores", {}).get(s, "-") for s in subjects]
                 + [rank_data.get("total", 0), rank_data.get("avg", 0), level]
             )
             ws.append(row_data)
@@ -426,7 +450,7 @@ def export_to_excel(filepath: str, data_manager: Any) -> bool:
 
 
 def get_default_filename(extension: str = "xlsx") -> str:
-    """获取默认导出文件名（含日期）。
+    """获取默认导出文件名（含日期）.
 
     Args:
         extension: 文件扩展名，默认 "xlsx"。

@@ -1,12 +1,12 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-数据管理模块 - Student Grade Management System Data Manager
+数据管理模块 - Student Grade Management System Data Manager.
 
 负责学生成绩数据的持久化存储、读取和管理操作。
 支持 JSON 格式的数据存储，包含数据备份和恢复功能。
 """
 
+import copy
+import datetime
 import json
 import logging
 import os
@@ -31,25 +31,29 @@ if not logger.handlers:
 # 自定义异常类
 # ------------------------------------------------------------------
 
+
 class DataManagerError(Exception):
-    """数据管理模块基础异常类。"""
+    """数据管理模块基础异常类."""
 
     def __init__(self, message: str = "数据管理错误") -> None:
+        """初始化异常实例."""
         super().__init__(message)
         self.message = message
 
 
 class DataIntegrityError(DataManagerError):
-    """数据完整性错误，如 JSON 格式损坏、缺失必要字段。"""
+    """数据完整性错误，如 JSON 格式损坏、缺失必要字段."""
 
     def __init__(self, message: str = "数据文件损坏，无法读取") -> None:
+        """初始化数据完整性错误."""
         super().__init__(message)
 
 
 class DataLoadError(DataManagerError):
-    """数据加载失败错误。"""
+    """数据加载失败错误."""
 
     def __init__(self, filepath: str, reason: str = "") -> None:
+        """初始化数据加载错误，记录文件路径和原因."""
         msg = f"无法加载数据文件: {filepath}"
         if reason:
             msg += f" ({reason})"
@@ -57,9 +61,10 @@ class DataLoadError(DataManagerError):
 
 
 class DataSaveError(DataManagerError):
-    """数据保存失败错误。"""
+    """数据保存失败错误."""
 
     def __init__(self, filepath: str, reason: str = "") -> None:
+        """初始化数据保存错误，记录文件路径和原因."""
         msg = f"无法保存数据文件: {filepath}"
         if reason:
             msg += f" ({reason})"
@@ -67,45 +72,51 @@ class DataSaveError(DataManagerError):
 
 
 class StudentNotFoundError(DataManagerError):
-    """学生不存在错误。"""
+    """学生不存在错误."""
 
     def __init__(self, student_id: str) -> None:
+        """初始化学生不存在错误."""
         super().__init__(f"学生 '{student_id}' 不存在")
 
 
 class DuplicateStudentError(DataManagerError):
-    """学号重复错误。"""
+    """学号重复错误."""
 
     def __init__(self, student_id: str) -> None:
+        """初始化学号重复错误."""
         super().__init__(f"学号 '{student_id}' 已存在")
 
 
 class SubjectNotFoundError(DataManagerError):
-    """科目不存在错误。"""
+    """科目不存在错误."""
 
     def __init__(self, subject: str) -> None:
+        """初始化科目不存在错误."""
         super().__init__(f"科目 '{subject}' 不存在")
 
 
 class DuplicateSubjectError(DataManagerError):
-    """科目重复错误。"""
+    """科目重复错误."""
 
     def __init__(self, subject: str) -> None:
+        """初始化科目重复错误."""
         super().__init__(f"科目 '{subject}' 已存在")
 
 
 class InvalidScoreError(DataManagerError):
-    """成绩无效错误。"""
+    """成绩无效错误."""
 
     def __init__(self, score: Any, subject: str = "") -> None:
+        """初始化成绩无效错误，记录分数和科目."""
         suffix = f"（科目: {subject}）" if subject else ""
         super().__init__(f"成绩 {score} 不在有效范围 0-100 内{suffix}")
 
 
 class InvalidInputError(DataManagerError):
-    """输入无效错误。"""
+    """输入无效错误."""
 
     def __init__(self, field: str) -> None:
+        """初始化输入无效错误，记录字段名."""
         super().__init__(f"{field}不能为空")
 
 
@@ -113,8 +124,9 @@ class InvalidInputError(DataManagerError):
 # DataManager 类
 # ------------------------------------------------------------------
 
+
 class DataManager:
-    """数据管理器类。
+    """数据管理器类.
 
     提供学生成绩数据的增删改查操作，支持数据持久化和备份。
 
@@ -132,7 +144,7 @@ class DataManager:
     STUDENT_ID_MAX_LEN: int = 32
 
     def __init__(self, file_path: Optional[str] = None) -> None:
-        """初始化数据管理器。
+        """初始化数据管理器.
 
         Args:
             file_path: 数据文件路径，默认使用 data/grades.json。
@@ -141,9 +153,7 @@ class DataManager:
             DataLoadError: 数据文件加载失败时抛出。
         """
         if file_path is None:
-            base_dir = os.path.dirname(
-                os.path.dirname(os.path.abspath(__file__))
-            )
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             self.fp: str = os.path.join(base_dir, "data", "grades.json")
         else:
             self.fp = file_path
@@ -158,7 +168,7 @@ class DataManager:
 
     @staticmethod
     def _validate_student_id(student_id: str) -> str:
-        """校验并规范化学号。
+        """校验并规范化学号.
 
         Args:
             student_id: 学号字符串。
@@ -180,7 +190,7 @@ class DataManager:
 
     @staticmethod
     def _validate_score(score: Any, subject: str = "") -> float:
-        """校验并转换成绩值。
+        """校验并转换成绩值.
 
         Args:
             score: 成绩值。
@@ -200,7 +210,7 @@ class DataManager:
 
     @staticmethod
     def _validate_subject_name(name: str) -> str:
-        """校验并规范化科目名称。
+        """校验并规范化科目名称.
 
         Args:
             name: 科目名称。
@@ -218,7 +228,7 @@ class DataManager:
 
     @staticmethod
     def _validate_class_name(name: str) -> str:
-        """校验并规范化班级名称。
+        """校验并规范化班级名称.
 
         Args:
             name: 班级名称。
@@ -235,7 +245,7 @@ class DataManager:
         return name
 
     def _validate_data_integrity(self) -> None:
-        """校验数据完整性，自动修复可修复的损坏。
+        """校验数据完整性，自动修复可修复的损坏.
 
         校验内容：
         1. 顶层结构：data 为 dict，包含 subjects (list) 和 students (dict)。
@@ -287,7 +297,7 @@ class DataManager:
     # ------------------------------------------------------------------
 
     def load(self) -> None:
-        """从文件加载数据。
+        """从文件加载数据.
 
         按优先级加载：
         1. 尝试加载主数据文件
@@ -338,7 +348,7 @@ class DataManager:
         self._validate_data_integrity()
 
     def save(self) -> None:
-        """保存数据到文件。
+        """保存数据到文件.
 
         采用安全写入策略：
         1. 先写入临时文件
@@ -386,16 +396,16 @@ class DataManager:
             raise DataSaveError(self.fp, str(e)) from e
 
     def _create_empty_data(self) -> dict[str, Any]:
-        """创建空的数据结构。
+        """创建空的数据结构.
 
         Returns:
             包含 subjects、students 和 history 的字典。
         """
         return {"subjects": [], "students": {}, "history": []}
-    
+
     @property
     def subjects(self) -> list[str]:
-        """获取科目列表（只读副本）。
+        """获取科目列表（只读副本）.
 
         Returns:
             科目名称列表。
@@ -404,19 +414,19 @@ class DataManager:
 
     @property
     def students(self) -> dict[str, dict[str, Any]]:
-        """获取学生字典（只读引用，注意修改会影响原始数据）。
+        """获取学生字典（深拷贝副本）.
 
         Returns:
-            学生信息字典，key 为学号。
+            学生信息字典的深拷贝，修改不会影响原始数据。
         """
-        return self.data["students"]
+        return copy.deepcopy(self.data["students"])
 
     # ------------------------------------------------------------------
     # 科目管理
     # ------------------------------------------------------------------
 
     def add_sub(self, name: str) -> None:
-        """添加科目（兼容旧接口）。
+        """添加科目（兼容旧接口）.
 
         Args:
             name: 科目名称。
@@ -428,7 +438,7 @@ class DataManager:
         return self.add_subject(name)
 
     def add_subject(self, name: str) -> None:
-        """添加科目。
+        """添加科目.
 
         Args:
             name: 科目名称。
@@ -445,7 +455,7 @@ class DataManager:
         logger.info("科目已添加: %s", name)
 
     def del_sub(self, name: str) -> None:
-        """删除科目（兼容旧接口）。
+        """删除科目（兼容旧接口）.
 
         Args:
             name: 科目名称。
@@ -453,7 +463,7 @@ class DataManager:
         return self.delete_subject(name)
 
     def delete_subject(self, name: str) -> None:
-        """删除科目。
+        """删除科目.
 
         删除科目时会同时删除所有学生该科目的成绩。
 
@@ -476,10 +486,8 @@ class DataManager:
     # 学生管理
     # ------------------------------------------------------------------
 
-    def add_stu(
-        self, student_id: str, name: str, class_name: str = ""
-    ) -> None:
-        """添加学生（兼容旧接口）。
+    def add_stu(self, student_id: str, name: str, class_name: str = "") -> None:
+        """添加学生（兼容旧接口）.
 
         Args:
             student_id: 学号。
@@ -492,10 +500,8 @@ class DataManager:
         """
         return self.add_student(student_id, name, class_name)
 
-    def add_student(
-        self, student_id: str, name: str, class_name: str = ""
-    ) -> None:
-        """添加学生。
+    def add_student(self, student_id: str, name: str, class_name: str = "") -> None:
+        """添加学生.
 
         Args:
             student_id: 学号。
@@ -520,10 +526,8 @@ class DataManager:
         self.save()
         logger.info("学生已添加: %s (%s, %s)", student_id, name, class_name)
 
-    def upd_stu(
-        self, student_id: str, name: str, class_name: str = ""
-    ) -> None:
-        """更新学生信息（兼容旧接口）。
+    def upd_stu(self, student_id: str, name: str, class_name: str = "") -> None:
+        """更新学生信息（兼容旧接口）.
 
         Args:
             student_id: 学号。
@@ -535,10 +539,8 @@ class DataManager:
         """
         return self.update_student(student_id, name, class_name)
 
-    def update_student(
-        self, student_id: str, name: str, class_name: str = ""
-    ) -> None:
-        """更新学生信息。
+    def update_student(self, student_id: str, name: str, class_name: str = "") -> None:
+        """更新学生信息.
 
         Args:
             student_id: 学号。
@@ -559,7 +561,7 @@ class DataManager:
         logger.info("学生信息已更新: %s", student_id)
 
     def del_stu(self, student_id: str) -> None:
-        """删除学生（兼容旧接口）。
+        """删除学生（兼容旧接口）.
 
         Args:
             student_id: 学号。
@@ -570,7 +572,7 @@ class DataManager:
         return self.delete_student(student_id)
 
     def delete_student(self, student_id: str) -> None:
-        """删除学生。
+        """删除学生.
 
         Args:
             student_id: 学号。
@@ -586,7 +588,7 @@ class DataManager:
         logger.info("学生已删除: %s", student_id)
 
     def get_stu(self, student_id: str) -> Optional[dict[str, Any]]:
-        """获取学生信息（兼容旧接口）。
+        """获取学生信息（兼容旧接口）.
 
         Args:
             student_id: 学号。
@@ -597,7 +599,7 @@ class DataManager:
         return self.get_student(student_id)
 
     def get_student(self, student_id: str) -> Optional[dict[str, Any]]:
-        """获取学生信息。
+        """获取学生信息.
 
         Args:
             student_id: 学号。
@@ -608,7 +610,7 @@ class DataManager:
         return self.data["students"].get(str(student_id).strip())
 
     def exists(self, student_id: str) -> bool:
-        """检查学生是否存在。
+        """检查学生是否存在.
 
         Args:
             student_id: 学号。
@@ -630,7 +632,7 @@ class DataManager:
         new: Any,
         operator: str = "system",
     ) -> None:
-        """添加一条成绩修改历史记录。
+        """添加一条成绩修改历史记录.
 
         Args:
             student_id: 学号。
@@ -639,7 +641,6 @@ class DataManager:
             new: 修改后的成绩。
             operator: 操作者标识。
         """
-        import datetime
         record = {
             "sid": str(student_id),
             "subject": str(subject),
@@ -651,11 +652,9 @@ class DataManager:
         self.data["history"].append(record)
 
     def get_history(
-        self,
-        student_id: Optional[str] = None,
-        subject: Optional[str] = None,
+        self, student_id: Optional[str] = None, subject: Optional[str] = None
     ) -> list[dict[str, Any]]:
-        """获取成绩修改历史记录。
+        """获取成绩修改历史记录.
 
         Args:
             student_id: 按学号过滤，可选。
@@ -674,10 +673,8 @@ class DataManager:
             result = [r for r in result if r.get("subject") == subj]
         return list(reversed(result))
 
-    def set_score(
-        self, student_id: str, subject: str, score: Any
-    ) -> None:
-        """设置学生成绩。
+    def set_score(self, student_id: str, subject: str, score: Any) -> None:
+        """设置学生成绩.
 
         Args:
             student_id: 学号。
@@ -698,18 +695,16 @@ class DataManager:
         if score is not None:
             score = self._validate_score(score, subject)
 
-        # 成绩发生变化时记录历史
-        if old_score != score:
+        # 成绩发生变化且旧成绩存在时记录历史（首次录入不记录）
+        if old_score is not None and old_score != score:
             self._add_history(student_id, subject, old_score, score)
 
         self.data["students"][student_id]["scores"][subject] = score
         self.save()
         logger.debug("成绩已设置: %s - %s = %s", student_id, subject, score)
 
-    def batch_set(
-        self, student_id: str, scores_dict: dict[str, Any]
-    ) -> None:
-        """批量设置学生成绩。
+    def batch_set(self, student_id: str, scores_dict: dict[str, Any]) -> None:
+        """批量设置学生成绩.
 
         自动跳过无效成绩值（None、空字符串、无法转换的值）。
 
@@ -731,13 +726,17 @@ class DataManager:
             try:
                 validated = self._validate_score(score, subject)
                 old_score = student["scores"].get(subject)
-                if old_score != validated:
+                # 只有旧成绩存在且发生变化时才记录历史（首次录入不记录）
+                if old_score is not None and old_score != validated:
                     self._add_history(student_id, subject, old_score, validated)
                 student["scores"][subject] = validated
             except (InvalidScoreError, ValueError, TypeError) as e:
                 logger.warning(
                     "批量设置成绩跳过无效值: %s - %s = %s (%s)",
-                    student_id, subject, score, e,
+                    student_id,
+                    subject,
+                    score,
+                    str(e),
                 )
         self.save()
 
@@ -746,7 +745,7 @@ class DataManager:
     # ------------------------------------------------------------------
 
     def stats(self, student_id: str) -> Optional[dict[str, Any]]:
-        """获取学生统计信息。
+        """获取学生统计信息.
 
         Args:
             student_id: 学号。
@@ -759,10 +758,7 @@ class DataManager:
         if not student:
             return None
 
-        scores = [
-            v for v in student["scores"].values()
-            if v is not None
-        ]
+        scores = [v for v in student["scores"].values() if v is not None]
         total = round(sum(scores), 2) if scores else 0.0
         avg = round(total / len(scores), 2) if scores else 0.0
 
@@ -776,11 +772,9 @@ class DataManager:
         }
 
     def ranking(
-        self,
-        by: str = "total",
-        subject: Optional[str] = None,
+        self, by: str = "total", subject: Optional[str] = None
     ) -> list[dict[str, Any]]:
-        """获取学生排名。
+        """获取学生排名.
 
         Args:
             by: 排序依据，可选 "total"(总分) / "avg"(平均分) / "subject"(科目)。
@@ -809,7 +803,7 @@ class DataManager:
         return result
 
     def ana_sub(self, subject: str) -> Optional[dict[str, Any]]:
-        """分析科目成绩统计（兼容旧接口）。
+        """分析科目成绩统计（兼容旧接口）.
 
         Args:
             subject: 科目名称。
@@ -820,7 +814,7 @@ class DataManager:
         return self.analyze_subject(subject)
 
     def analyze_subject(self, subject: str) -> Optional[dict[str, Any]]:
-        """分析科目成绩统计。
+        """分析科目成绩统计.
 
         Args:
             subject: 科目名称。
@@ -840,9 +834,7 @@ class DataManager:
                 try:
                     scores.append(float(score))
                 except (ValueError, TypeError):
-                    logger.warning(
-                        "科目分析跳过无效成绩: %s = %s", subject, score
-                    )
+                    logger.warning("科目分析跳过无效成绩: %s = %s", subject, score)
 
         if not scores:
             return None
@@ -862,18 +854,14 @@ class DataManager:
             "max": round(max(scores), 2),
             "min": round(min(scores), 2),
             "avg": round(sum(scores) / n, 2),
-            "pass_rate": round(
-                sum(1 for s in scores if s >= 60) / n * 100, 1
-            ),
-            "excellent_rate": round(
-                sum(1 for s in scores if s >= 90) / n * 100, 1
-            ),
+            "pass_rate": round(sum(1 for s in scores if s >= 60) / n * 100, 1),
+            "excellent_rate": round(sum(1 for s in scores if s >= 90) / n * 100, 1),
             "distribution": distribution,
             "scores": [round(s, 2) for s in scores],
         }
 
     def search(self, keyword: str) -> list[str]:
-        """搜索学生。
+        """搜索学生.
 
         支持按学号、姓名、班级进行模糊匹配。
 
@@ -902,7 +890,7 @@ class DataManager:
 
     @property
     def classes(self) -> list[str]:
-        """获取所有班级列表（排序后）。
+        """获取所有班级列表（排序后）.
 
         Returns:
             班级名称列表。
@@ -915,7 +903,7 @@ class DataManager:
         return sorted(class_set)
 
     def add_class(self, class_name: str) -> str:
-        """添加班级（兼容旧接口）。
+        """添加班级（兼容旧接口）.
 
         Args:
             class_name: 班级名称。
@@ -931,16 +919,12 @@ class DataManager:
 
         for student in self.data["students"].values():
             if student.get("class") == class_name:
-                raise DuplicateStudentError(
-                    f"班级 '{class_name}' 已存在"
-                )
+                raise DuplicateStudentError(f"班级 '{class_name}' 已存在")
 
         return class_name
 
-    def get_class_stats(
-        self, class_name: str
-    ) -> Optional[dict[str, Any]]:
-        """获取班级统计信息。
+    def get_class_stats(self, class_name: str) -> Optional[dict[str, Any]]:
+        """获取班级统计信息.
 
         Args:
             class_name: 班级名称。
@@ -963,13 +947,16 @@ class DataManager:
 
         totals: list[dict[str, Any]] = []
         for sid, student in students:
-            scores = [
-                v for v in student["scores"].values() if v is not None
-            ]
+            scores = [v for v in student["scores"].values() if v is not None]
             total = round(sum(scores), 2) if scores else 0.0
             avg = round(total / len(scores), 2) if scores else 0.0
             totals.append(
-                {"sid": sid, "name": student["name"], "total": total, "avg": avg}
+                {
+                    "sid": sid,
+                    "name": student["name"],
+                    "total": total,
+                    "avg": avg,
+                }
             )
 
         totals.sort(key=lambda x: x["total"], reverse=True)
@@ -981,16 +968,14 @@ class DataManager:
         return {
             "class": class_name,
             "count": len(students),
-            "total_avg": (
-                round(sum(overall) / len(overall), 2) if overall else 0.0
-            ),
+            "total_avg": (round(sum(overall) / len(overall), 2) if overall else 0.0),
             "students": totals,
             "max_total": max(overall) if overall else 0.0,
             "min_total": min(overall) if overall else 0.0,
         }
 
     def get_warnings(self) -> list[dict[str, Any]]:
-        """获取成绩预警学生列表。
+        """获取成绩预警学生列表.
 
         Returns:
             包含不及格学生信息和不及格科目的列表。
@@ -1003,11 +988,7 @@ class DataManager:
                     fails.append((subj, score))
 
             if fails:
-                total_scores = [
-                    v
-                    for v in student["scores"].values()
-                    if v is not None
-                ]
+                total_scores = [v for v in student["scores"].values() if v is not None]
                 avg = (
                     round(sum(total_scores) / len(total_scores), 2)
                     if total_scores
