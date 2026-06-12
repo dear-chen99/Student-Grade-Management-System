@@ -153,11 +153,15 @@ class LoginWindow(ctk.CTk):
         """验证用户名和密码，成功则设置登录标志."""
         username = self.username_entry.get().strip()
         password = self.password_entry.get().strip()
-        if username == "admin" and password == "123456":
+        if self._verify_login(username, password):
             self.login_success = True
             self.destroy()
         else:
             messagebox.showerror("登录失败", "用户名或密码错误！")
+
+    def _verify_login(self, username: str, password: str) -> bool:
+        """分离的验证逻辑，便于单元测试."""
+        return username == "admin" and password == "123456"
 
     def run(self):
         """启动窗口主循环，返回登录结果."""
