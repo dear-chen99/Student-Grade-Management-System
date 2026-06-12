@@ -695,8 +695,8 @@ class DataManager:
         if score is not None:
             score = self._validate_score(score, subject)
 
-        # 成绩发生变化且旧成绩存在时记录历史（首次录入不记录）
-        if old_score is not None and old_score != score:
+        # 成绩发生变化时记录历史
+        if old_score != score:
             self._add_history(student_id, subject, old_score, score)
 
         self.data["students"][student_id]["scores"][subject] = score
@@ -726,8 +726,8 @@ class DataManager:
             try:
                 validated = self._validate_score(score, subject)
                 old_score = student["scores"].get(subject)
-                # 只有旧成绩存在且发生变化时才记录历史（首次录入不记录）
-                if old_score is not None and old_score != validated:
+                # 成绩发生变化时记录历史
+                if old_score != validated:
                     self._add_history(student_id, subject, old_score, validated)
                 student["scores"][subject] = validated
             except (InvalidScoreError, ValueError, TypeError) as e:
