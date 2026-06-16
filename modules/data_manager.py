@@ -120,6 +120,38 @@ class InvalidInputError(DataManagerError):
         super().__init__(f"{field}不能为空")
 
 
+class TeacherNotFoundError(DataManagerError):
+    """教师不存在错误."""
+
+    def __init__(self, teacher_id: str) -> None:
+        """初始化教师不存在错误."""
+        super().__init__(f"教师 '{teacher_id}' 不存在")
+
+
+class DuplicateTeacherError(DataManagerError):
+    """教师工号重复错误."""
+
+    def __init__(self, teacher_id: str) -> None:
+        """初始化教师工号重复错误."""
+        super().__init__(f"教师工号 '{teacher_id}' 已存在")
+
+
+class CourseNotFoundError(DataManagerError):
+    """课程不存在错误."""
+
+    def __init__(self, course_id: str) -> None:
+        """初始化课程不存在错误."""
+        super().__init__(f"课程 '{course_id}' 不存在")
+
+
+class DuplicateCourseError(DataManagerError):
+    """课程重复错误."""
+
+    def __init__(self, course_id: str) -> None:
+        """初始化课程重复错误."""
+        super().__init__(f"课程 '{course_id}' 已存在")
+
+
 # ------------------------------------------------------------------
 # DataManager 类
 # ------------------------------------------------------------------
@@ -170,6 +202,8 @@ class DataManager:
     def _validate_student_id(student_id: str) -> str:
         """校验并规范化学号.
 
+        将旧格式 001-999 自动转换为 2024001-2024999.
+
         Args:
             student_id: 学号字符串。
 
@@ -182,11 +216,54 @@ class DataManager:
         student_id = str(student_id).strip()
         if not student_id:
             raise InvalidInputError("学号")
+        # 旧格式 1-3 位纯数字 → 2024xxxx
+        if student_id.isdigit() and 1 <= len(student_id) <= 3:
+            student_id = f"2024{student_id.zfill(3)}"
         if len(student_id) > DataManager.STUDENT_ID_MAX_LEN:
             raise InvalidInputError(
                 f"学号长度不能超过 {DataManager.STUDENT_ID_MAX_LEN} 个字符"
             )
         return student_id
+
+    def _migrate_student_ids(self) -> None:
+        """将旧格式学号（如 001）迁移为新格式（2024001）.
+
+        迁移范围包括 students 字典键、attendance 记录、
+        history 日志中的 sid 字段，以及默认密码。
+        """
+        import re
+
+        pattern = re.compile(r"^\d{1,3}$")
+        mapping = {}
+        for sid in list(self.data["students"].keys()):
+            if pattern.match(sid):
+                new_sid = f"2024{sid.zfill(3)}"
+                mapping[sid] = new_sid
+
+        if not mapping:
+            return
+
+        for old_sid, new_sid in mapping.items():
+            self.data["students"][new_sid] = self.data["students"].pop(old_sid)
+            stu = self.data["students"][new_sid]
+            if stu.get("password") == old_sid:
+                stu["password"] = new_sid
+
+        for date in self.data.get("attendance", {}):
+            for cid in list(self.data["attendance"][date].keys()):
+                records = self.data["attendance"][date][cid]
+                if not isinstance(records, dict):
+                    continue
+                for old_sid, new_sid in mapping.items():
+                    if old_sid in records:
+                        records[new_sid] = records.pop(old_sid)
+
+        for record in self.data.get("history", []):
+            sid = record.get("sid", "")
+            if sid in mapping:
+                record["sid"] = mapping[sid]
+
+        logger.info("已迁移 %d 条旧格式学号", len(mapping))
 
     @staticmethod
     def _validate_score(score: Any, subject: str = "") -> float:
@@ -263,6 +340,12 @@ class DataManager:
             self.data["students"] = {}
         if "history" not in self.data:
             self.data["history"] = []
+        if "teachers" not in self.data:
+            self.data["teachers"] = {}
+        if "courses" not in self.data:
+            self.data["courses"] = {}
+        if "attendance" not in self.data:
+            self.data["attendance"] = {}
         if not isinstance(self.data["subjects"], list):
             raise DataIntegrityError("subjects 字段不是列表")
         if not isinstance(self.data["students"], dict):
@@ -270,6 +353,32 @@ class DataManager:
         if not isinstance(self.data["history"], list):
             logger.warning("history 字段不是列表，已自动修复")
             self.data["history"] = []
+        if not isinstance(self.data["teachers"], dict):
+            logger.warning("teachers 字段不是字典，已自动修复")
+            self.data["teachers"] = {}
+        if not isinstance(self.data["courses"], dict):
+            logger.warning("courses 字段不是字典，已自动修复")
+            self.data["courses"] = {}
+        if not isinstance(self.data["attendance"], dict):
+            logger.warning("attendance 字段不是字典，已自动修复")
+            self.data["attendance"] = {}
+        if "notices" not in self.data:
+            self.data["notices"] = []
+        if not isinstance(self.data["notices"], list):
+            logger.warning("notices 字段不是列表，已自动修复")
+            self.data["notices"] = []
+        if "schedules" not in self.data:
+            self.data["schedules"] = []
+        if not isinstance(self.data["schedules"], list):
+            logger.warning("schedules 字段不是列表，已自动修复")
+            self.data["schedules"] = []
+        if "schedule_history" not in self.data:
+            self.data["schedule_history"] = []
+        if not isinstance(self.data["schedule_history"], list):
+            logger.warning("schedule_history 字段不是列表，已自动修复")
+            self.data["schedule_history"] = []
+
+        self._migrate_student_ids()
 
         repaired = 0
         for sid, stu in list(self.data["students"].items()):
@@ -288,6 +397,42 @@ class DataManager:
                 repaired += 1
             if "class" not in stu:
                 stu["class"] = ""
+            for field in ("phone", "email", "gender", "birth", "avatar"):
+                if field not in stu:
+                    stu[field] = ""
+
+        for tid, tea in list(self.data.get("teachers", {}).items()):
+            if not isinstance(tea, dict):
+                continue
+            for field in ("phone", "email", "gender", "birth", "avatar"):
+                if field not in tea:
+                    tea[field] = ""
+
+        admin = self.data.get("admin")
+        if not isinstance(admin, dict):
+            self.data["admin"] = {
+                "username": "admin",
+                "password": "123456",
+                "avatar": "",
+                "name": "管理员",
+                "phone": "",
+                "email": "",
+                "gender": "",
+                "birth": "",
+            }
+        else:
+            for field, default in (
+                ("username", "admin"),
+                ("password", "123456"),
+                ("avatar", ""),
+                ("name", "管理员"),
+                ("phone", ""),
+                ("email", ""),
+                ("gender", ""),
+                ("birth", ""),
+            ):
+                if field not in admin:
+                    admin[field] = default
 
         if repaired:
             logger.info("数据完整性校验: 修复了 %d 处问题", repaired)
@@ -399,9 +544,29 @@ class DataManager:
         """创建空的数据结构.
 
         Returns:
-            包含 subjects、students 和 history 的字典。
+            包含 subjects、students、history、teachers 和 courses 的字典。
         """
-        return {"subjects": [], "students": {}, "history": []}
+        return {
+            "subjects": [],
+            "students": {},
+            "history": [],
+            "teachers": {},
+            "courses": {},
+            "attendance": {},
+            "notices": [],
+            "schedules": [],
+            "schedule_history": [],
+            "admin": {
+                "username": "admin",
+                "password": "123456",
+                "avatar": "",
+                "name": "管理员",
+                "phone": "",
+                "email": "",
+                "gender": "",
+                "birth": "",
+            },
+        }
 
     @property
     def subjects(self) -> list[str]:
@@ -522,6 +687,12 @@ class DataManager:
             "name": name,
             "class": class_name,
             "scores": {},
+            "password": student_id,
+            "phone": "",
+            "email": "",
+            "gender": "",
+            "birth": "",
+            "avatar": "",
         }
         self.save()
         logger.info("学生已添加: %s (%s, %s)", student_id, name, class_name)
@@ -539,13 +710,30 @@ class DataManager:
         """
         return self.update_student(student_id, name, class_name)
 
-    def update_student(self, student_id: str, name: str, class_name: str = "") -> None:
+    def update_student(
+        self,
+        student_id: str,
+        name: str = "",
+        class_name: str = "",
+        phone: str = "",
+        email: str = "",
+        gender: str = "",
+        birth: str = "",
+        avatar: str = "",
+        password: str = "",
+    ) -> None:
         """更新学生信息.
 
         Args:
             student_id: 学号。
-            name: 学生姓名。
-            class_name: 班级名称。
+            name: 学生姓名，为空时不修改。
+            class_name: 班级名称，为空时不修改。
+            phone: 手机号，为空时不修改。
+            email: 邮箱，为空时不修改。
+            gender: 性别，为空时不修改。
+            birth: 生日，为空时不修改。
+            avatar: 头像路径，为空时不修改。
+            password: 密码，为空时不修改。
 
         Raises:
             StudentNotFoundError: 学生不存在时抛出。
@@ -553,10 +741,23 @@ class DataManager:
         student_id = self._validate_student_id(student_id)
         if student_id not in self.data["students"]:
             raise StudentNotFoundError(student_id)
-        self.data["students"][student_id]["name"] = str(name).strip()
-        self.data["students"][student_id]["class"] = (
-            str(class_name).strip() if class_name else ""
-        )
+        student = self.data["students"][student_id]
+        if name:
+            student["name"] = str(name).strip()
+        if class_name:
+            student["class"] = str(class_name).strip()
+        if phone is not None:
+            student["phone"] = str(phone).strip()
+        if email is not None:
+            student["email"] = str(email).strip()
+        if gender:
+            student["gender"] = str(gender).strip()
+        if birth is not None:
+            student["birth"] = str(birth).strip()
+        if avatar:
+            student["avatar"] = str(avatar).strip()
+        if password:
+            student["password"] = str(password).strip()
         self.save()
         logger.info("学生信息已更新: %s", student_id)
 
@@ -608,6 +809,23 @@ class DataManager:
             学生信息字典，包含姓名、班级和成绩；不存在时返回 None。
         """
         return self.data["students"].get(str(student_id).strip())
+
+    def get_students_by_class(
+        self, class_name: str
+    ) -> list[tuple[str, dict[str, Any]]]:
+        """获取指定班级的所有学生.
+
+        Args:
+            class_name: 班级名称。
+
+        Returns:
+            学生元组列表，每个元组为 (学号, 学生信息字典)。
+        """
+        return [
+            (sid, stu)
+            for sid, stu in self.data["students"].items()
+            if stu.get("class") == class_name
+        ]
 
     def exists(self, student_id: str) -> bool:
         """检查学生是否存在.
@@ -1005,6 +1223,876 @@ class DataManager:
                 )
 
         return warnings
+
+    # ------------------------------------------------------------------
+    # 教师管理
+    # ------------------------------------------------------------------
+
+    @property
+    def teachers(self) -> dict[str, dict[str, Any]]:
+        """获取教师字典（深拷贝副本）.
+
+        Returns:
+            教师信息字典的深拷贝。
+        """
+        return copy.deepcopy(self.data["teachers"])
+
+    def add_teacher(self, teacher_id: str, name: str, password: str = "") -> None:
+        """添加教师账号.
+
+        Args:
+            teacher_id: 教师工号。
+            name: 教师姓名。
+            password: 登录密码，为空时默认为工号。
+
+        Raises:
+            DuplicateTeacherError: 工号已存在时抛出。
+            InvalidInputError: 工号或姓名为空时抛出。
+        """
+        teacher_id = str(teacher_id).strip()
+        name = str(name).strip()
+        if not teacher_id:
+            raise InvalidInputError("教师工号")
+        if not name:
+            raise InvalidInputError("教师姓名")
+        if teacher_id in self.data["teachers"]:
+            raise DuplicateTeacherError(teacher_id)
+        self.data["teachers"][teacher_id] = {
+            "name": name,
+            "password": password if password else teacher_id,
+            "course_ids": [],
+        }
+        self.save()
+        logger.info("教师已添加: %s (%s)", teacher_id, name)
+
+    def delete_teacher(self, teacher_id: str) -> None:
+        """删除教师账号.
+
+        Args:
+            teacher_id: 教师工号。
+
+        Raises:
+            TeacherNotFoundError: 教师不存在时抛出。
+        """
+        teacher_id = str(teacher_id).strip()
+        if teacher_id not in self.data["teachers"]:
+            raise TeacherNotFoundError(teacher_id)
+        del self.data["teachers"][teacher_id]
+        self.save()
+        logger.info("教师已删除: %s", teacher_id)
+
+    def update_teacher(
+        self,
+        teacher_id: str,
+        name: str = "",
+        password: str = "",
+        phone: str = "",
+        email: str = "",
+        gender: str = "",
+        birth: str = "",
+        avatar: str = "",
+    ) -> None:
+        """更新教师信息.
+
+        Args:
+            teacher_id: 教师工号。
+            name: 新姓名，为空时不修改。
+            password: 新密码，为空时不修改。
+            phone: 手机号，为空时不修改。
+            email: 邮箱，为空时不修改。
+            gender: 性别，为空时不修改。
+            birth: 生日，为空时不修改。
+            avatar: 头像路径，为空时不修改。
+
+        Raises:
+            TeacherNotFoundError: 教师不存在时抛出。
+        """
+        teacher_id = str(teacher_id).strip()
+        if teacher_id not in self.data["teachers"]:
+            raise TeacherNotFoundError(teacher_id)
+        teacher = self.data["teachers"][teacher_id]
+        if name:
+            teacher["name"] = str(name).strip()
+        if password:
+            teacher["password"] = str(password).strip()
+        if phone is not None:
+            teacher["phone"] = str(phone).strip()
+        if email is not None:
+            teacher["email"] = str(email).strip()
+        if gender:
+            teacher["gender"] = str(gender).strip()
+        if birth is not None:
+            teacher["birth"] = str(birth).strip()
+        if avatar:
+            teacher["avatar"] = str(avatar).strip()
+        self.save()
+        logger.info("教师信息已更新: %s", teacher_id)
+
+    def get_teacher(self, teacher_id: str) -> Optional[dict[str, Any]]:
+        """获取教师信息.
+
+        Args:
+            teacher_id: 教师工号。
+
+        Returns:
+            教师信息字典，不存在时返回 None。
+        """
+        return self.data["teachers"].get(str(teacher_id).strip())
+
+    def reset_teacher_password(self, teacher_id: str) -> str:
+        """重置教师密码为默认密码（工号）.
+
+        Args:
+            teacher_id: 教师工号。
+
+        Returns:
+            重置后的默认密码。
+
+        Raises:
+            TeacherNotFoundError: 教师不存在时抛出。
+        """
+        teacher_id = str(teacher_id).strip()
+        if teacher_id not in self.data["teachers"]:
+            raise TeacherNotFoundError(teacher_id)
+        self.data["teachers"][teacher_id]["password"] = teacher_id
+        self.save()
+        logger.info("教师密码已重置: %s", teacher_id)
+        return teacher_id
+
+    def assign_course_to_teacher(self, teacher_id: str, course_id: str) -> None:
+        """为教师分配课程.
+
+        Args:
+            teacher_id: 教师工号。
+            course_id: 课程编号。
+
+        Raises:
+            TeacherNotFoundError: 教师不存在时抛出。
+        """
+        teacher_id = str(teacher_id).strip()
+        if teacher_id not in self.data["teachers"]:
+            raise TeacherNotFoundError(teacher_id)
+        course_ids = self.data["teachers"][teacher_id].get("course_ids", [])
+        if course_id not in course_ids:
+            course_ids.append(course_id)
+            self.data["teachers"][teacher_id]["course_ids"] = course_ids
+            self.save()
+
+    def remove_course_from_teacher(self, teacher_id: str, course_id: str) -> None:
+        """移除教师的课程分配.
+
+        Args:
+            teacher_id: 教师工号。
+            course_id: 课程编号。
+
+        Raises:
+            TeacherNotFoundError: 教师不存在时抛出。
+        """
+        teacher_id = str(teacher_id).strip()
+        if teacher_id not in self.data["teachers"]:
+            raise TeacherNotFoundError(teacher_id)
+        course_ids = self.data["teachers"][teacher_id].get("course_ids", [])
+        if course_id in course_ids:
+            course_ids.remove(course_id)
+            self.data["teachers"][teacher_id]["course_ids"] = course_ids
+            self.save()
+
+    # ------------------------------------------------------------------
+    # 课程管理
+    # ------------------------------------------------------------------
+
+    @property
+    def courses(self) -> dict[str, dict[str, Any]]:
+        """获取课程字典（深拷贝副本）.
+
+        Returns:
+            课程信息字典的深拷贝。
+        """
+        return copy.deepcopy(self.data["courses"])
+
+    def add_course(
+        self,
+        course_id: str,
+        name: str,
+        teacher_id: str = "",
+        class_name: str = "",
+    ) -> None:
+        """添加课程.
+
+        Args:
+            course_id: 课程编号。
+            name: 课程名称。
+            teacher_id: 任课教师工号，可选。
+            class_name: 所属班级，可选。
+
+        Raises:
+            DuplicateCourseError: 课程编号已存在时抛出。
+            InvalidInputError: 课程编号或名称为空时抛出。
+        """
+        course_id = str(course_id).strip()
+        name = str(name).strip()
+        if not course_id:
+            raise InvalidInputError("课程编号")
+        if not name:
+            raise InvalidInputError("课程名称")
+        if course_id in self.data["courses"]:
+            raise DuplicateCourseError(course_id)
+        self.data["courses"][course_id] = {
+            "name": name,
+            "teacher_id": str(teacher_id).strip() if teacher_id else "",
+            "class_name": str(class_name).strip() if class_name else "",
+        }
+        if teacher_id:
+            self.assign_course_to_teacher(teacher_id, course_id)
+        self.save()
+        logger.info("课程已添加: %s (%s)", course_id, name)
+
+    def delete_course(self, course_id: str) -> None:
+        """删除课程.
+
+        Args:
+            course_id: 课程编号。
+
+        Raises:
+            CourseNotFoundError: 课程不存在时抛出。
+        """
+        course_id = str(course_id).strip()
+        if course_id not in self.data["courses"]:
+            raise CourseNotFoundError(course_id)
+        teacher_id = self.data["courses"][course_id].get("teacher_id", "")
+        if teacher_id:
+            self.remove_course_from_teacher(teacher_id, course_id)
+        del self.data["courses"][course_id]
+        self.save()
+        logger.info("课程已删除: %s", course_id)
+
+    def update_course(
+        self,
+        course_id: str,
+        name: str = "",
+        teacher_id: str = "",
+        class_name: str = "",
+    ) -> None:
+        """更新课程信息.
+
+        Args:
+            course_id: 课程编号。
+            name: 新课程名称，为空时不修改。
+            teacher_id: 新任课教师工号，为空时不修改。
+            class_name: 新所属班级，为空时不修改。
+
+        Raises:
+            CourseNotFoundError: 课程不存在时抛出。
+        """
+        course_id = str(course_id).strip()
+        if course_id not in self.data["courses"]:
+            raise CourseNotFoundError(course_id)
+        course = self.data["courses"][course_id]
+        old_teacher = course.get("teacher_id", "")
+        if name:
+            course["name"] = str(name).strip()
+        if teacher_id is not None:
+            new_teacher = str(teacher_id).strip()
+            if old_teacher and old_teacher != new_teacher:
+                self.remove_course_from_teacher(old_teacher, course_id)
+            if new_teacher:
+                self.assign_course_to_teacher(new_teacher, course_id)
+            course["teacher_id"] = new_teacher
+        if class_name is not None:
+            course["class_name"] = str(class_name).strip()
+        self.save()
+        logger.info("课程信息已更新: %s", course_id)
+
+    def get_course(self, course_id: str) -> Optional[dict[str, Any]]:
+        """获取课程信息.
+
+        Args:
+            course_id: 课程编号。
+
+        Returns:
+            课程信息字典，不存在时返回 None。
+        """
+        return self.data["courses"].get(str(course_id).strip())
+
+    # ------------------------------------------------------------------
+    # 认证方法
+    # ------------------------------------------------------------------
+
+    def authenticate_admin(self, username: str, password: str) -> bool:
+        """验证管理员账号密码.
+
+        Args:
+            username: 管理员用户名。
+            password: 密码。
+
+        Returns:
+            验证成功返回 True。
+        """
+        return str(username).strip() == "admin" and str(password).strip() == "123456"
+
+    def authenticate_teacher(
+        self, teacher_id: str, password: str
+    ) -> Optional[dict[str, Any]]:
+        """验证教师账号密码.
+
+        Args:
+            teacher_id: 教师工号。
+            password: 密码。
+
+        Returns:
+            验证成功返回教师信息字典，失败返回 None。
+        """
+        teacher = self.data["teachers"].get(str(teacher_id).strip())
+        if teacher and teacher.get("password") == str(password).strip():
+            return {"teacher_id": teacher_id, "name": teacher["name"]}
+        return None
+
+    def authenticate_student(
+        self, student_id: str, password: str
+    ) -> Optional[dict[str, Any]]:
+        """验证学生账号密码.
+
+        Args:
+            student_id: 学号。
+            password: 密码。
+
+        Returns:
+            验证成功返回学生信息字典，失败返回 None。
+        """
+        student = self.data["students"].get(str(student_id).strip())
+        if student and student.get("password") == str(password).strip():
+            return {
+                "student_id": student_id,
+                "name": student["name"],
+                "class": student.get("class", ""),
+            }
+        return None
+
+    # ------------------------------------------------------------------
+    # 考勤管理
+    # ------------------------------------------------------------------
+
+    def record_attendance(
+        self,
+        date: str,
+        course_id: str,
+        student_id: str,
+        status: str,
+    ) -> None:
+        """记录学生考勤.
+
+        Args:
+            date: 考勤日期，格式 "YYYY-MM-DD"。
+            course_id: 课程标识。
+            student_id: 学号。
+            status: 考勤状态，可选 present/absent/late/leave。
+
+        Raises:
+            StudentNotFoundError: 学生不存在时抛出。
+            InvalidInputError: 日期或状态为空时抛出。
+        """
+        date = str(date).strip()
+        course_id = str(course_id).strip()
+        student_id = str(student_id).strip()
+        status = str(status).strip().lower()
+        if not date:
+            raise InvalidInputError("date")
+        if not course_id:
+            raise InvalidInputError("course_id")
+        if not student_id:
+            raise InvalidInputError("student_id")
+        if status not in ("present", "absent", "late", "leave"):
+            status = "present"
+        if student_id not in self.data["students"]:
+            raise StudentNotFoundError(student_id)
+
+        if date not in self.data["attendance"]:
+            self.data["attendance"][date] = {}
+        if course_id not in self.data["attendance"][date]:
+            self.data["attendance"][date][course_id] = {}
+        self.data["attendance"][date][course_id][student_id] = status
+        self.save()
+
+    def batch_record_attendance(
+        self,
+        date: str,
+        course_id: str,
+        records: dict[str, str],
+    ) -> None:
+        """批量记录考勤.
+
+        Args:
+            date: 考勤日期，格式 "YYYY-MM-DD"。
+            course_id: 课程标识。
+            records: 考勤字典，key 为学号，value 为状态。
+        """
+        date = str(date).strip()
+        course_id = str(course_id).strip()
+        if date not in self.data["attendance"]:
+            self.data["attendance"][date] = {}
+        if course_id not in self.data["attendance"][date]:
+            self.data["attendance"][date][course_id] = {}
+        for sid, status in records.items():
+            sid = str(sid).strip()
+            st = str(status).strip().lower()
+            if st not in ("present", "absent", "late", "leave"):
+                st = "present"
+            if sid in self.data["students"]:
+                self.data["attendance"][date][course_id][sid] = st
+        self.save()
+
+    def get_attendance(self, date: str, course_id: str) -> dict[str, str]:
+        """获取指定日期和课程的考勤记录.
+
+        Args:
+            date: 考勤日期。
+            course_id: 课程标识。
+
+        Returns:
+            学号到考勤状态的字典，无记录时返回空字典。
+        """
+        date = str(date).strip()
+        course_id = str(course_id).strip()
+        return copy.deepcopy(
+            self.data.get("attendance", {}).get(date, {}).get(course_id, {})
+        )
+
+    def get_student_attendance(
+        self,
+        student_id: str,
+        course_id: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> list[dict[str, Any]]:
+        """获取学生的考勤记录.
+
+        Args:
+            student_id: 学号。
+            course_id: 课程标识，可选。
+            start_date: 起始日期，可选。
+            end_date: 结束日期，可选。
+
+        Returns:
+            考勤记录列表，每项包含 date、course_id、status。
+        """
+        student_id = str(student_id).strip()
+        result: list[dict[str, Any]] = []
+        for date, courses in self.data.get("attendance", {}).items():
+            if start_date and date < start_date:
+                continue
+            if end_date and date > end_date:
+                continue
+            for cid, records in courses.items():
+                if course_id and cid != course_id:
+                    continue
+                if student_id in records:
+                    result.append(
+                        {
+                            "date": date,
+                            "course_id": cid,
+                            "status": records[student_id],
+                        }
+                    )
+        return sorted(result, key=lambda x: x["date"])
+
+    def get_attendance_stats(self, date: str, course_id: str) -> dict[str, Any]:
+        """获取指定日期和课程的考勤统计.
+
+        Args:
+            date: 考勤日期。
+            course_id: 课程标识。
+
+        Returns:
+            包含总人数、出勤、缺勤、迟到、请假人数及出勤率的字典。
+        """
+        records = self.get_attendance(date, course_id)
+        total = len(records)
+        present = sum(1 for s in records.values() if s == "present")
+        absent = sum(1 for s in records.values() if s == "absent")
+        late = sum(1 for s in records.values() if s == "late")
+        leave = sum(1 for s in records.values() if s == "leave")
+        rate = round(present / total * 100, 1) if total else 0.0
+        return {
+            "total": total,
+            "present": present,
+            "absent": absent,
+            "late": late,
+            "leave": leave,
+            "rate": rate,
+        }
+
+    def get_attendance_dates(self, course_id: str) -> list[str]:
+        """获取课程的所有考勤日期.
+
+        Args:
+            course_id: 课程标识。
+
+        Returns:
+            日期字符串列表，按升序排列。
+        """
+        course_id = str(course_id).strip()
+        dates: set[str] = set()
+        for date, courses in self.data.get("attendance", {}).items():
+            if course_id in courses:
+                dates.add(date)
+        return sorted(dates)
+
+    def delete_attendance(self, date: str, course_id: str) -> None:
+        """删除指定日期和课程的考勤记录.
+
+        Args:
+            date: 考勤日期。
+            course_id: 课程标识。
+        """
+        date = str(date).strip()
+        course_id = str(course_id).strip()
+        if date in self.data.get("attendance", {}):
+            self.data["attendance"][date].pop(course_id, None)
+            if not self.data["attendance"][date]:
+                del self.data["attendance"][date]
+            self.save()
+
+    def update_admin_profile(
+        self,
+        name: str = "",
+        phone: str = "",
+        email: str = "",
+        gender: str = "",
+        birth: str = "",
+        avatar: str = "",
+    ) -> None:
+        """更新管理员个人信息.
+
+        Args:
+            name: 姓名，为空时不修改。
+            phone: 手机号，为空时不修改。
+            email: 邮箱，为空时不修改。
+            gender: 性别，为空时不修改。
+            birth: 生日，为空时不修改。
+            avatar: 头像路径，为空时不修改。
+        """
+        admin = self.data.setdefault(
+            "admin",
+            {
+                "username": "admin",
+                "password": "123456",
+                "avatar": "",
+                "name": "管理员",
+                "phone": "",
+                "email": "",
+                "gender": "",
+                "birth": "",
+            },
+        )
+        if name:
+            admin["name"] = str(name).strip()
+        if phone is not None:
+            admin["phone"] = str(phone).strip()
+        if email is not None:
+            admin["email"] = str(email).strip()
+        if gender:
+            admin["gender"] = str(gender).strip()
+        if birth is not None:
+            admin["birth"] = str(birth).strip()
+        if avatar:
+            admin["avatar"] = str(avatar).strip()
+        self.save()
+
+    def get_admin(self) -> dict[str, Any]:
+        """获取管理员信息.
+
+        Returns:
+            管理员信息字典。
+        """
+        return copy.deepcopy(
+            self.data.get(
+                "admin",
+                {
+                    "username": "admin",
+                    "password": "123456",
+                    "avatar": "",
+                    "name": "管理员",
+                    "phone": "",
+                    "email": "",
+                    "gender": "",
+                    "birth": "",
+                },
+            )
+        )
+
+    # ------------------------------------------------------------------
+    # 公告管理
+    # ------------------------------------------------------------------
+
+    def get_notices(self, role: Optional[str] = None) -> list[dict[str, Any]]:
+        """获取公告列表.
+
+        Args:
+            role: 查看角色（admin/teacher/student），为 None 时返回全部。
+
+        Returns:
+            公告列表，按发布时间倒序排列。
+        """
+        notices = list(self.data.get("notices", []))
+        if role is not None:
+            role = str(role).strip()
+            notices = [
+                n
+                for n in notices
+                if n.get("target", "all") == "all" or n.get("target") == role
+            ]
+        return list(reversed(notices))
+
+    def add_notice(
+        self,
+        title: str,
+        content: str,
+        publisher: str = "",
+        publisher_role: str = "admin",
+        target: str = "all",
+    ) -> str:
+        """添加公告.
+
+        Args:
+            title: 公告标题。
+            content: 公告内容。
+            publisher: 发布人姓名。
+            publisher_role: 发布人角色（admin/teacher）。
+            target: 目标角色（all/teacher/student）。
+
+        Returns:
+            新公告的 ID。
+        """
+        import uuid
+
+        notice_id = str(uuid.uuid4())[:8]
+        notice = {
+            "id": notice_id,
+            "title": str(title).strip(),
+            "content": str(content).strip(),
+            "publisher": str(publisher).strip(),
+            "publisher_role": str(publisher_role).strip(),
+            "target": str(target).strip(),
+            "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+        }
+        self.data.setdefault("notices", []).append(notice)
+        self.save()
+        logger.info("公告已添加: %s (%s)", notice_id, title)
+        return notice_id
+
+    def delete_notice(self, notice_id: str) -> None:
+        """删除公告.
+
+        Args:
+            notice_id: 公告 ID。
+        """
+        notice_id = str(notice_id).strip()
+        notices = self.data.get("notices", [])
+        self.data["notices"] = [n for n in notices if n.get("id") != notice_id]
+        self.save()
+        logger.info("公告已删除: %s", notice_id)
+
+    # ------------------------------------------------------------------
+    # 课表管理
+    # ------------------------------------------------------------------
+
+    def get_schedules(self) -> list[dict[str, Any]]:
+        """获取课表列表，按星期、时段和节次排序.
+
+        Returns:
+            课表列表，每个元素包含 id, weekday, session, period,
+            course, teacher, room, updated_at。
+        """
+        schedules = list(self.data.get("schedules", []))
+        weekday_order = {
+            "周一": 1,
+            "周二": 2,
+            "周三": 3,
+            "周四": 4,
+            "周五": 5,
+            "周六": 6,
+            "周日": 7,
+        }
+        session_order = {"上午": 1, "下午": 2}
+        schedules.sort(
+            key=lambda s: (
+                weekday_order.get(s.get("weekday", ""), 99),
+                session_order.get(s.get("session", ""), 99),
+                s.get("period", 0),
+            )
+        )
+        return schedules
+
+    def add_schedule(
+        self,
+        weekday: str,
+        session: str,
+        period: int,
+        course: str,
+        teacher: str,
+        room: str,
+        operator: str = "admin",
+    ) -> str:
+        """添加课表条目.
+
+        Args:
+            weekday: 星期（如"周一"）。
+            session: 时段（"上午"或"下午"）。
+            period: 节次。
+            course: 课程名。
+            teacher: 教师。
+            room: 教室。
+            operator: 操作者。
+
+        Returns:
+            新课表条目的 ID。
+        """
+        schedule_id = (
+            f"sch_{len(self.data.get('schedules', [])) + 1}_"
+            f"{int(datetime.datetime.now().timestamp())}"
+        )
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+        entry = {
+            "id": schedule_id,
+            "weekday": weekday.strip(),
+            "session": session.strip(),
+            "period": int(period),
+            "course": course.strip(),
+            "teacher": teacher.strip(),
+            "room": room.strip(),
+            "updated_at": now,
+        }
+        self.data.setdefault("schedules", []).append(entry)
+        history_entry = {
+            "time": now,
+            "action": "新增",
+            "old_summary": "",
+            "new_summary": (
+                f"{weekday} {session}第{period}节 " f"{course}({teacher}) {room}"
+            ),
+            "operator": operator,
+        }
+        self.data.setdefault("schedule_history", []).append(history_entry)
+        self.save()
+        logger.info(
+            "课表已添加: %s %s%s第%s节 %s",
+            schedule_id,
+            weekday,
+            session,
+            period,
+            course,
+        )
+        return schedule_id
+
+    def update_schedule(
+        self,
+        schedule_id: str,
+        weekday: str,
+        session: str,
+        period: int,
+        course: str,
+        teacher: str,
+        room: str,
+        operator: str = "admin",
+    ) -> None:
+        """更新课表条目.
+
+        Args:
+            schedule_id: 课表条目 ID。
+            weekday: 星期。
+            session: 时段（"上午"或"下午"）。
+            period: 节次。
+            course: 课程名。
+            teacher: 教师。
+            room: 教室。
+            operator: 操作者。
+        """
+        schedule_id = str(schedule_id).strip()
+        schedules = self.data.get("schedules", [])
+        old_summary = ""
+        for s in schedules:
+            if s.get("id") == schedule_id:
+                old_session = s.get("session", "")
+                old_summary = (
+                    f"{s.get('weekday', '')} {old_session}"
+                    f"第{s.get('period', '')}节 "
+                    f"{s.get('course', '')}({s.get('teacher', '')}) "
+                    f"{s.get('room', '')}"
+                )
+                s["weekday"] = weekday.strip()
+                s["session"] = session.strip()
+                s["period"] = int(period)
+                s["course"] = course.strip()
+                s["teacher"] = teacher.strip()
+                s["room"] = room.strip()
+                now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+                s["updated_at"] = now
+                new_summary = (
+                    f"{weekday.strip()} {session.strip()}"
+                    f"第{period}节 "
+                    f"{course.strip()}({teacher.strip()}) "
+                    f"{room.strip()}"
+                )
+                history_entry = {
+                    "time": now,
+                    "action": "修改",
+                    "old_summary": old_summary,
+                    "new_summary": new_summary,
+                    "operator": operator,
+                }
+                self.data.setdefault("schedule_history", []).append(history_entry)
+                break
+        self.save()
+        logger.info("课表已更新: %s", schedule_id)
+
+    def delete_schedule(self, schedule_id: str, operator: str = "admin") -> None:
+        """删除课表条目.
+
+        Args:
+            schedule_id: 课表条目 ID。
+            operator: 操作者。
+        """
+        schedule_id = str(schedule_id).strip()
+        schedules = self.data.get("schedules", [])
+        old_summary = ""
+        for s in schedules:
+            if s.get("id") == schedule_id:
+                old_summary = (
+                    f"{s.get('weekday', '')} "
+                    f"{s.get('session', '')}"
+                    f"第{s.get('period', '')}节 "
+                    f"{s.get('course', '')}({s.get('teacher', '')}) "
+                    f"{s.get('room', '')}"
+                )
+                break
+        self.data["schedules"] = [s for s in schedules if s.get("id") != schedule_id]
+        if old_summary:
+            now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+            history_entry = {
+                "time": now,
+                "action": "删除",
+                "old_summary": old_summary,
+                "new_summary": "",
+                "operator": operator,
+            }
+            self.data.setdefault("schedule_history", []).append(history_entry)
+        self.save()
+        logger.info("课表已删除: %s", schedule_id)
+
+    def get_schedule_history(self) -> list[dict[str, Any]]:
+        """获取课表变更历史，按时间倒序.
+
+        Returns:
+            历史记录列表，每个元素包含 time, action, old_summary, new_summary, operator。
+        """
+        history = list(self.data.get("schedule_history", []))
+        return list(reversed(history))
+
+    def clear_schedule_history(self) -> None:
+        """清空课表变更历史记录."""
+        self.data["schedule_history"] = []
+        self.save()
+        logger.info("课表变更历史已清空")
 
 
 # ------------------------------------------------------------------

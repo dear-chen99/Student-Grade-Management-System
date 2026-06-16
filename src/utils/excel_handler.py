@@ -304,6 +304,10 @@ def import_from_excel(filepath: str, data_manager: Any) -> Tuple[int, Optional[s
                 if not student_id:
                     continue
 
+                # 旧格式 1-3 位纯数字 → 2024xxxx
+                if student_id.isdigit() and 1 <= len(student_id) <= 3:
+                    student_id = f"2024{student_id.zfill(3)}"
+
                 name = (
                     str(values[name_idx]).strip()
                     if name_idx < len(values) and values[name_idx] is not None
