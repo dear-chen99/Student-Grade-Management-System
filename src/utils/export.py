@@ -2,6 +2,16 @@
 数据导出模块 - Data Export Module.
 
 提供 CSV 格式的数据导出功能，包括成绩数据和统计数据。
+
+本模块独立于 Excel 处理库，仅依赖 Python 标准库中的 ``csv`` 模块，
+确保在任意环境下都能完成基础的数据导出操作。
+
+主要功能::
+
+    - export_to_csv: 将学生成绩排名导出为 CSV 文件。
+    - export_statistics: 将科目统计分析导出为 CSV 文件。
+    - get_default_filename: 生成带日期的默认文件名。
+
 """
 
 import csv
@@ -13,15 +23,17 @@ def export_to_csv(filepath: str, data_manager: Any) -> bool:
     """导出成绩数据到 CSV 文件.
 
     包含排名、学号、姓名、班级、各科成绩、总分、平均分。
+    使用 ``utf-8-sig`` 编码，确保 Excel 打开时中文不会出现乱码。
 
     Args:
         filepath: 保存路径。
-        data_manager: DataManager 实例。
+        data_manager: DataManager 实例，需提供 ``subjects`` 属性和 ``ranking()`` 方法。
 
     Returns:
         True 表示导出成功，False 表示失败。
     """
     try:
+        # 使用 utf-8-sig 编码写入 BOM，使 Excel 默认以 UTF-8 打开
         with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
             writer = csv.writer(f)
 
@@ -29,6 +41,7 @@ def export_to_csv(filepath: str, data_manager: Any) -> bool:
             header = ["排名", "学号", "姓名", "班级"] + subjects + ["总分", "平均分"]
             writer.writerow(header)
 
+            # 逐行写入每个学生的成绩与排名数据
             for rank_data in data_manager.ranking():
                 row_data = (
                     [
@@ -45,6 +58,7 @@ def export_to_csv(filepath: str, data_manager: Any) -> bool:
         return True
 
     except Exception:
+        # CSV 写入失败（如路径不可写、权限不足），返回 False 由调用方处理
         return False
 
 
@@ -61,10 +75,11 @@ def export_statistics(filepath: str, data_manager: Any) -> bool:
     """导出科目统计数据到 CSV 文件.
 
     包含各科目的平均分、最高分、最低分、及格率等。
+    文件内容分为"学生统计"和"科目统计"两大部分。
 
     Args:
         filepath: 保存路径。
-        data_manager: DataManager 实例。
+        data_manager: DataManager 实例，需提供 ``subjects`` 属性和 ``analyze_subject()`` 方法。
 
     Returns:
         True 表示导出成功，False 表示失败。
@@ -76,7 +91,7 @@ def export_statistics(filepath: str, data_manager: Any) -> bool:
             # 总体统计
             writer.writerow(["学生统计"])
             writer.writerow(["总人数", len(data_manager.students)])
-            writer.writerow([])
+            writer.writerow([])  # 空行分隔
 
             # 科目统计
             writer.writerow(["科目统计"])
@@ -84,6 +99,7 @@ def export_statistics(filepath: str, data_manager: Any) -> bool:
                 ["科目", "人数", "平均分", "最高分", "最低分", "及格率", "优秀率"]
             )
 
+            # 遍历所有科目，获取分析数据并写入
             for subject in data_manager.subjects:
                 analysis = data_manager.analyze_subject(subject)
                 if analysis:

@@ -3,6 +3,26 @@
 
 负责学生成绩数据的持久化存储、读取和管理操作。
 支持 JSON 格式的数据存储，包含数据备份和恢复功能。
+
+本模块是系统的核心数据层，提供对以下实体和功能的完整管理：
+
+**学生管理**：增删改查学生信息（姓名、班级、联系方式、头像等）。
+**科目管理**：维护科目列表，支持动态增删。
+**成绩管理**：单条/批量设置成绩，自动记录修改历史。
+**教师管理**：教师账号的增删改查及课程分配。
+**课程管理**：课程信息维护及任课教师关联。
+**班级管理**：班级列表提取与班级级统计分析。
+**考勤管理**：按日期、课程记录学生出勤状态（出勤/缺勤/迟到/请假）。
+**公告管理**：发布公告并支持按角色筛选查看。
+**课表管理**：课程表条目增删改及变更历史记录。
+**统计分析**：学生排名、科目成绩分布、班级统计、成绩预警等。
+**数据完整性**：加载时自动校验并修复缺失或损坏的数据字段。
+
+数据以 JSON 格式持久化到磁盘，采用"临时文件 + 备份 + 原子替换"的安全写入策略，
+最大限度避免写入过程中断导致的数据丢失。
+
+Attributes:
+    logger: 模块级日志记录器，用于记录数据操作和异常信息。
 """
 
 import copy
@@ -13,7 +33,10 @@ import os
 import shutil
 from typing import Any, Optional
 
-# 配置模块级日志
+# ------------------------------------------------------------------
+# 模块级日志配置
+# ------------------------------------------------------------------
+# 配置独立的日志记录器，便于在数据操作过程中追踪异常和审计信息。
 logger = logging.getLogger("DataManager")
 logger.setLevel(logging.INFO)
 if not logger.handlers:
@@ -30,30 +53,59 @@ if not logger.handlers:
 # ------------------------------------------------------------------
 # 自定义异常类
 # ------------------------------------------------------------------
+# 定义数据管理相关的异常体系，便于上层界面捕获并给出友好提示。
 
 
 class DataManagerError(Exception):
-    """数据管理模块基础异常类."""
+    """数据管理模块基础异常类.
+
+    所有本模块自定义异常的基类。
+
+    Attributes:
+        message: 错误描述信息。
+    """
 
     def __init__(self, message: str = "数据管理错误") -> None:
-        """初始化异常实例."""
+        """初始化异常实例.
+
+        Args:
+            message: 错误描述信息。
+        """
         super().__init__(message)
         self.message = message
 
 
 class DataIntegrityError(DataManagerError):
-    """数据完整性错误，如 JSON 格式损坏、缺失必要字段."""
+    """数据完整性错误，如 JSON 格式损坏、缺失必要字段.
+
+    当数据文件严重损坏且无法通过自动修复恢复时抛出。
+    """
 
     def __init__(self, message: str = "数据文件损坏，无法读取") -> None:
-        """初始化数据完整性错误."""
+        """初始化数据完整性错误.
+
+        Args:
+            message: 错误描述信息。
+        """
         super().__init__(message)
 
 
 class DataLoadError(DataManagerError):
-    """数据加载失败错误."""
+    """数据加载失败错误.
+
+    在尝试读取主数据文件和备份文件均失败时抛出。
+
+    Attributes:
+        message: 包含文件路径的错误描述。
+    """
 
     def __init__(self, filepath: str, reason: str = "") -> None:
-        """初始化数据加载错误，记录文件路径和原因."""
+        """初始化数据加载错误，记录文件路径和原因.
+
+        Args:
+            filepath: 发生错误的文件路径。
+            reason: 失败原因补充说明。
+        """
         msg = f"无法加载数据文件: {filepath}"
         if reason:
             msg += f" ({reason})"
@@ -61,10 +113,18 @@ class DataLoadError(DataManagerError):
 
 
 class DataSaveError(DataManagerError):
-    """数据保存失败错误."""
+    """数据保存失败错误.
+
+    在写入临时文件、备份原文件或原子替换过程中发生异常时抛出。
+    """
 
     def __init__(self, filepath: str, reason: str = "") -> None:
-        """初始化数据保存错误，记录文件路径和原因."""
+        """初始化数据保存错误，记录文件路径和原因.
+
+        Args:
+            filepath: 发生错误的文件路径。
+            reason: 失败原因补充说明。
+        """
         msg = f"无法保存数据文件: {filepath}"
         if reason:
             msg += f" ({reason})"
@@ -72,83 +132,154 @@ class DataSaveError(DataManagerError):
 
 
 class StudentNotFoundError(DataManagerError):
-    """学生不存在错误."""
+    """学生不存在错误.
+
+    在尝试访问、修改或删除不存在的学生时抛出。
+    """
 
     def __init__(self, student_id: str) -> None:
-        """初始化学生不存在错误."""
+        """初始化学生不存在错误.
+
+        Args:
+            student_id: 不存在的学号。
+        """
         super().__init__(f"学生 '{student_id}' 不存在")
 
 
 class DuplicateStudentError(DataManagerError):
-    """学号重复错误."""
+    """学号重复错误.
+
+    在添加学生或班级时，如果标识已存在则抛出。
+    """
 
     def __init__(self, student_id: str) -> None:
-        """初始化学号重复错误."""
+        """初始化学号重复错误.
+
+        Args:
+            student_id: 已存在的学号。
+        """
         super().__init__(f"学号 '{student_id}' 已存在")
 
 
 class SubjectNotFoundError(DataManagerError):
-    """科目不存在错误."""
+    """科目不存在错误.
+
+    在尝试删除不存在的科目时抛出。
+    """
 
     def __init__(self, subject: str) -> None:
-        """初始化科目不存在错误."""
+        """初始化科目不存在错误.
+
+        Args:
+            subject: 不存在的科目名称。
+        """
         super().__init__(f"科目 '{subject}' 不存在")
 
 
 class DuplicateSubjectError(DataManagerError):
-    """科目重复错误."""
+    """科目重复错误.
+
+    在添加已存在的科目时抛出。
+    """
 
     def __init__(self, subject: str) -> None:
-        """初始化科目重复错误."""
+        """初始化科目重复错误.
+
+        Args:
+            subject: 已存在的科目名称。
+        """
         super().__init__(f"科目 '{subject}' 已存在")
 
 
 class InvalidScoreError(DataManagerError):
-    """成绩无效错误."""
+    """成绩无效错误.
+
+    在设置超出 0-100 范围的成绩时抛出。
+    """
 
     def __init__(self, score: Any, subject: str = "") -> None:
-        """初始化成绩无效错误，记录分数和科目."""
+        """初始化成绩无效错误，记录分数和科目.
+
+        Args:
+            score: 无效的成绩值。
+            subject: 相关科目名称（可选）。
+        """
         suffix = f"（科目: {subject}）" if subject else ""
         super().__init__(f"成绩 {score} 不在有效范围 0-100 内{suffix}")
 
 
 class InvalidInputError(DataManagerError):
-    """输入无效错误."""
+    """输入无效错误.
+
+    在必填字段为空或超出长度限制时抛出。
+    """
 
     def __init__(self, field: str) -> None:
-        """初始化输入无效错误，记录字段名."""
+        """初始化输入无效错误，记录字段名.
+
+        Args:
+            field: 验证失败的字段名称。
+        """
         super().__init__(f"{field}不能为空")
 
 
 class TeacherNotFoundError(DataManagerError):
-    """教师不存在错误."""
+    """教师不存在错误.
+
+    在尝试访问、修改或删除不存在的教师时抛出。
+    """
 
     def __init__(self, teacher_id: str) -> None:
-        """初始化教师不存在错误."""
+        """初始化教师不存在错误.
+
+        Args:
+            teacher_id: 不存在的教师工号。
+        """
         super().__init__(f"教师 '{teacher_id}' 不存在")
 
 
 class DuplicateTeacherError(DataManagerError):
-    """教师工号重复错误."""
+    """教师工号重复错误.
+
+    在添加已存在的教师工号时抛出。
+    """
 
     def __init__(self, teacher_id: str) -> None:
-        """初始化教师工号重复错误."""
+        """初始化教师工号重复错误.
+
+        Args:
+            teacher_id: 已存在的教师工号。
+        """
         super().__init__(f"教师工号 '{teacher_id}' 已存在")
 
 
 class CourseNotFoundError(DataManagerError):
-    """课程不存在错误."""
+    """课程不存在错误.
+
+    在尝试访问、修改或删除不存在的课程时抛出。
+    """
 
     def __init__(self, course_id: str) -> None:
-        """初始化课程不存在错误."""
+        """初始化课程不存在错误.
+
+        Args:
+            course_id: 不存在的课程编号。
+        """
         super().__init__(f"课程 '{course_id}' 不存在")
 
 
 class DuplicateCourseError(DataManagerError):
-    """课程重复错误."""
+    """课程重复错误.
+
+    在添加已存在的课程编号时抛出。
+    """
 
     def __init__(self, course_id: str) -> None:
-        """初始化课程重复错误."""
+        """初始化课程重复错误.
+
+        Args:
+            course_id: 已存在的课程编号。
+        """
         super().__init__(f"课程 '{course_id}' 已存在")
 
 
@@ -186,6 +317,7 @@ class DataManager:
         """
         if file_path is None:
             import sys
+
             # PyInstaller 打包后，数据文件放在 exe 同级目录（持久化保存）
             if hasattr(sys, "_MEIPASS"):
                 base_dir = os.path.dirname(sys.executable)
@@ -244,6 +376,12 @@ class DataManager:
 
         迁移范围包括 students 字典键、attendance 记录、
         history 日志中的 sid 字段，以及默认密码。
+
+        Args:
+            无（仅操作实例内部数据）。
+
+        Returns:
+            None
         """
         import re
 
@@ -342,6 +480,12 @@ class DataManager:
         1. 顶层结构：data 为 dict，包含 subjects (list) 和 students (dict)。
         2. 每个学生：name 为非空字符串，scores 为字典。
         3. 损坏数据：自动补全缺失字段，无法修复时移除并记录日志。
+
+        Args:
+            无（仅操作实例内部数据）。
+
+        Returns:
+            None
 
         Raises:
             DataIntegrityError: 数据严重损坏无法修复时抛出。
@@ -463,6 +607,12 @@ class DataManager:
         2. 主文件加载失败时，尝试从备份文件恢复
         3. 都失败时创建新的空数据结构
 
+        Args:
+            无（仅操作实例内部数据）。
+
+        Returns:
+            None
+
         Raises:
             DataLoadError: 所有加载方式均失败时抛出。
         """
@@ -513,6 +663,12 @@ class DataManager:
         1. 先写入临时文件
         2. 备份原文件
         3. 替换原文件
+
+        Args:
+            无（仅操作实例内部数据）。
+
+        Returns:
+            None
 
         Raises:
             DataSaveError: 保存失败时抛出。
@@ -610,6 +766,9 @@ class DataManager:
         Args:
             name: 科目名称。
 
+        Returns:
+            None
+
         Raises:
             DuplicateSubjectError: 科目已存在时抛出。
             InvalidInputError: 科目名称为空时抛出。
@@ -638,6 +797,9 @@ class DataManager:
 
         Args:
             name: 科目名称。
+
+        Returns:
+            None
         """
         return self.delete_subject(name)
 
@@ -672,6 +834,9 @@ class DataManager:
             student_id: 学号。
             name: 学生姓名。
             class_name: 班级名称。
+
+        Returns:
+            None
 
         Raises:
             DuplicateStudentError: 学号已存在时抛出。
@@ -718,6 +883,9 @@ class DataManager:
             student_id: 学号。
             name: 学生姓名。
             class_name: 班级名称。
+
+        Returns:
+            None
 
         Raises:
             StudentNotFoundError: 学生不存在时抛出。
@@ -780,6 +948,9 @@ class DataManager:
 
         Args:
             student_id: 学号。
+
+        Returns:
+            None
 
         Raises:
             StudentNotFoundError: 学生不存在时抛出。

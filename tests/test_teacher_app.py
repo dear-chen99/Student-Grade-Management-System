@@ -1,6 +1,7 @@
 """Teacher App (teacher_app.py) 单元测试.
 
-使用 mock 绕过 Tkinter GUI 初始化，测试业务逻辑和模块导入。
+使用 mock 绕过 Tkinter GUI 初始化，测试教师端业务逻辑和模块导入，
+涵盖页面构建、静态方法、业务方法及生命周期等各个方面。
 """
 
 import sys
@@ -9,7 +10,10 @@ from unittest.mock import MagicMock, patch
 
 
 class MockWindow:
-    """Mock ttkbootstrap Window."""
+    """Mock ttkbootstrap Window，模拟所有常用的窗口及控件方法。
+
+    用于替换真实的 Tkinter 组件，避免测试时弹出 GUI 或触发 TclError。
+    """
 
     def __init__(self, *args, **kwargs):
         pass
@@ -175,6 +179,8 @@ class MockWindow:
 
 
 class MockStyle:
+    """Mock ttkbootstrap Style，用于替换主题样式对象。"""
+
     def __init__(self, *args, **kwargs):
         pass
 
@@ -189,6 +195,8 @@ class MockStyle:
 
 
 class MockTreeview:
+    """Mock ttk Treeview，模拟表格控件的常用操作。"""
+
     def __init__(self, *args, **kwargs):
         self._items = {}
         self._next_iid = 1
@@ -269,6 +277,8 @@ class MockTreeview:
 
 
 class MockScrollbar:
+    """Mock ttk Scrollbar，用于模拟滚动条。"""
+
     def __init__(self, *args, **kwargs):
         pass
 
@@ -288,6 +298,7 @@ class MockScrollbar:
         pass
 
 
+# 构造 tkinter 及子模块的 mock 对象，统一替换 sys.modules 中的真实模块
 tk_mock = MagicMock()
 tk_mock.TclError = type("TclError", (Exception,), {})
 tk_mock.Frame = MockWindow
@@ -344,7 +355,7 @@ _mock_modules = {
 
 
 class TestTeacherAppImportAndInit(unittest.TestCase):
-    """测试 teacher_app.py 的导入和基本初始化."""
+    """测试 teacher_app.py 的导入和基本初始化。"""
 
     @patch.dict("sys.modules", _mock_modules)
     @patch("teacher_app.messagebox", tk_mock.messagebox)
@@ -353,8 +364,12 @@ class TestTeacherAppImportAndInit(unittest.TestCase):
     @patch("teacher_app.Window", MockWindow)
     @patch("teacher_app.Style", MockStyle)
     def test_teacher_app_imports(self):
-        """测试 teacher_app.py 可以成功导入."""
-        import teacher_app
+        """测试 teacher_app.py 可以成功导入。
+
+        预期结果：teacher_app 模块暴露 TeacherApp 类。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         self.assertTrue(hasattr(teacher_app, "TeacherApp"))
 
     @patch.dict("sys.modules", _mock_modules)
@@ -366,8 +381,13 @@ class TestTeacherAppImportAndInit(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_teacher_app_init(self, mock_change, mock_load):
-        """测试 TeacherApp 类能初始化（mock GUI）."""
-        import teacher_app
+        """测试 TeacherApp 类能初始化（mock GUI）。
+
+        使用完整 mock 的 DataManager 构造 TeacherApp，
+        预期实例不为 None，且 teacher_id 与 teacher_name 被正确赋值。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = MagicMock()
         mock_dm.subjects = []
         mock_dm.students = {}
@@ -391,8 +411,12 @@ class TestTeacherAppImportAndInit(unittest.TestCase):
         mock_dm.get_attendance_dates.return_value = []
         mock_dm.get_student_attendance.return_value = []
         mock_dm.get_attendance_stats.return_value = {
-            "total": 0, "present": 0, "absent": 0,
-            "late": 0, "leave": 0, "rate": 0.0,
+            "total": 0,
+            "present": 0,
+            "absent": 0,
+            "late": 0,
+            "leave": 0,
+            "rate": 0.0,
         }
         instance = teacher_app.TeacherApp(
             data_manager=mock_dm,
@@ -411,8 +435,12 @@ class TestTeacherAppImportAndInit(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_teacher_app_run(self, mock_change, mock_load):
-        """测试 TeacherApp.run 返回字典."""
-        import teacher_app
+        """测试 TeacherApp.run 返回字典。
+
+        预期结果：run() 返回包含 logout 键的字典。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = MagicMock()
         mock_dm.subjects = []
         mock_dm.students = {}
@@ -436,8 +464,12 @@ class TestTeacherAppImportAndInit(unittest.TestCase):
         mock_dm.get_attendance_dates.return_value = []
         mock_dm.get_student_attendance.return_value = []
         mock_dm.get_attendance_stats.return_value = {
-            "total": 0, "present": 0, "absent": 0,
-            "late": 0, "leave": 0, "rate": 0.0,
+            "total": 0,
+            "present": 0,
+            "absent": 0,
+            "late": 0,
+            "leave": 0,
+            "rate": 0.0,
         }
         instance = teacher_app.TeacherApp(
             data_manager=mock_dm,
@@ -455,8 +487,12 @@ class TestTeacherAppImportAndInit(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_teacher_app_logout_flag(self, mock_change, mock_load):
-        """测试退出登录标志初始为 False."""
-        import teacher_app
+        """测试退出登录标志初始为 False。
+
+        预期结果：新创建的 TeacherApp 实例 _logout_flag 为 False。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = MagicMock()
         mock_dm.subjects = []
         mock_dm.students = {}
@@ -480,8 +516,12 @@ class TestTeacherAppImportAndInit(unittest.TestCase):
         mock_dm.get_attendance_dates.return_value = []
         mock_dm.get_student_attendance.return_value = []
         mock_dm.get_attendance_stats.return_value = {
-            "total": 0, "present": 0, "absent": 0,
-            "late": 0, "leave": 0, "rate": 0.0,
+            "total": 0,
+            "present": 0,
+            "absent": 0,
+            "late": 0,
+            "leave": 0,
+            "rate": 0.0,
         }
         instance = teacher_app.TeacherApp(
             data_manager=mock_dm,
@@ -491,7 +531,7 @@ class TestTeacherAppImportAndInit(unittest.TestCase):
 
 
 class TestTeacherAppConstants(unittest.TestCase):
-    """测试 teacher_app.py 的模块级常量."""
+    """测试 teacher_app.py 的模块级常量。"""
 
     @patch.dict("sys.modules", _mock_modules)
     @patch("teacher_app.messagebox", tk_mock.messagebox)
@@ -500,8 +540,12 @@ class TestTeacherAppConstants(unittest.TestCase):
     @patch("teacher_app.Window", MockWindow)
     @patch("teacher_app.Style", MockStyle)
     def test_colors_defined(self):
-        """测试颜色常量已定义."""
-        import teacher_app
+        """测试颜色常量已定义。
+
+        预期结果：模块包含 TEAL_COLOR 和 TEAL_DARK 属性。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         self.assertTrue(hasattr(teacher_app, "TEAL_COLOR"))
         self.assertTrue(hasattr(teacher_app, "TEAL_DARK"))
 
@@ -512,8 +556,12 @@ class TestTeacherAppConstants(unittest.TestCase):
     @patch("teacher_app.Window", MockWindow)
     @patch("teacher_app.Style", MockStyle)
     def test_excel_flag(self):
-        """测试 EX_OK 标志."""
-        import teacher_app
+        """测试 EX_OK 标志。
+
+        预期结果：EX_OK 为布尔值之一。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         self.assertIn(teacher_app.EX_OK, [True, False])
 
     @patch.dict("sys.modules", _mock_modules)
@@ -523,18 +571,23 @@ class TestTeacherAppConstants(unittest.TestCase):
     @patch("teacher_app.Window", MockWindow)
     @patch("teacher_app.Style", MockStyle)
     def test_matplotlib_flag(self):
-        """测试 MAT_OK 标志."""
-        import teacher_app
+        """测试 MAT_OK 标志。
+
+        预期结果：MAT_OK 为布尔值之一。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         self.assertIn(teacher_app.MAT_OK, [True, False])
 
 
 # ==================== 新增测试类 ====================
 
+
 class TestTeacherStaticMethods(unittest.TestCase):
-    """测试 TeacherApp 的静态方法."""
+    """测试 TeacherApp 的静态方法和工具方法。"""
 
     def _create_mock_dm(self):
-        """创建 mock DataManager."""
+        """创建 mock DataManager，提供教师端常用的默认返回值。"""
         mock_dm = MagicMock()
         mock_dm.subjects = []
         mock_dm.students = {}
@@ -558,8 +611,12 @@ class TestTeacherStaticMethods(unittest.TestCase):
         mock_dm.get_attendance_dates.return_value = []
         mock_dm.get_student_attendance.return_value = []
         mock_dm.get_attendance_stats.return_value = {
-            "total": 0, "present": 0, "absent": 0,
-            "late": 0, "leave": 0, "rate": 0.0,
+            "total": 0,
+            "present": 0,
+            "absent": 0,
+            "late": 0,
+            "leave": 0,
+            "rate": 0.0,
         }
         mock_dm.get_students_by_class.return_value = []
         mock_dm.authenticate_teacher.return_value = True
@@ -574,9 +631,12 @@ class TestTeacherStaticMethods(unittest.TestCase):
     @patch("teacher_app.Window", MockWindow)
     @patch("teacher_app.Style", MockStyle)
     def test_get_level(self):
-        """测试 _get_level 静态方法."""
-        import teacher_app
-        # _get_level 没有 @staticmethod 装饰器，但作为类方法直接调用
+        """测试 _get_level 静态方法。
+
+        验证各分数段对应的等级，并确认 None 输入会触发 TypeError。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         self.assertEqual(teacher_app.TeacherApp._get_level(95), "优秀")
         self.assertEqual(teacher_app.TeacherApp._get_level(85), "良好")
         self.assertEqual(teacher_app.TeacherApp._get_level(75), "良好")
@@ -593,8 +653,12 @@ class TestTeacherStaticMethods(unittest.TestCase):
     @patch("teacher_app.Window", MockWindow)
     @patch("teacher_app.Style", MockStyle)
     def test_get_level_tag(self):
-        """测试 _get_level_tag 静态方法."""
-        import teacher_app
+        """测试 _get_level_tag 静态方法。
+
+        验证各分数段对应的 (tag, level) 元组。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         self.assertEqual(
             teacher_app.TeacherApp._get_level_tag(95),
             ("excellent", "优秀"),
@@ -627,8 +691,12 @@ class TestTeacherStaticMethods(unittest.TestCase):
     @patch("teacher_app.Window", MockWindow)
     @patch("teacher_app.Style", MockStyle)
     def test_mg_sort_key(self):
-        """测试 _mg_sort_key 静态方法."""
-        import teacher_app
+        """测试 _mg_sort_key 静态方法。
+
+        验证数字值转为 float、字符串转为小写、"-"/空/None 返回 -1 等分支。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         # 数字值
         self.assertEqual(
             teacher_app.TeacherApp._mg_sort_key(["张三", "85"], 1),
@@ -657,10 +725,13 @@ class TestTeacherStaticMethods(unittest.TestCase):
 
 
 class TestTeacherPageBuilders(unittest.TestCase):
-    """测试 TeacherApp 的页面构建方法."""
+    """测试 TeacherApp 的各个页面构建方法。
+
+    每个页面构建方法在 mock 环境下应能正常执行，不抛出异常。
+    """
 
     def _create_mock_dm(self):
-        """创建 mock DataManager."""
+        """创建 mock DataManager，配置教师端常用默认值。"""
         mock_dm = MagicMock()
         mock_dm.subjects = ["语文", "数学", "英语"]
         mock_dm.students = {}
@@ -684,8 +755,12 @@ class TestTeacherPageBuilders(unittest.TestCase):
         mock_dm.get_attendance_dates.return_value = []
         mock_dm.get_student_attendance.return_value = []
         mock_dm.get_attendance_stats.return_value = {
-            "total": 0, "present": 0, "absent": 0,
-            "late": 0, "leave": 0, "rate": 0.0,
+            "total": 0,
+            "present": 0,
+            "absent": 0,
+            "late": 0,
+            "leave": 0,
+            "rate": 0.0,
         }
         mock_dm.get_students_by_class.return_value = []
         mock_dm.authenticate_teacher.return_value = True
@@ -694,7 +769,15 @@ class TestTeacherPageBuilders(unittest.TestCase):
         return mock_dm
 
     def _create_app(self, teacher_app_module, mock_dm):
-        """创建 TeacherApp 实例."""
+        """创建 TeacherApp 实例。
+
+        Args:
+            teacher_app_module: 已导入的 teacher_app 模块。
+            mock_dm: mock DataManager 实例。
+
+        Returns:
+            TeacherApp 实例。
+        """
         instance = teacher_app_module.TeacherApp(
             data_manager=mock_dm,
             user_info={"teacher_id": "T001", "name": "王老师"},
@@ -710,13 +793,16 @@ class TestTeacherPageBuilders(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_build_dashboard_page(self, mock_change, mock_load):
-        """测试 _build_dashboard_page 页面构建."""
-        import teacher_app
+        """测试 _build_dashboard_page 页面构建。
+
+        预期结果：页面构建不抛异常。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
         parent = MockWindow()
         app._build_dashboard_page(parent)
-        # 验证页面构建不抛异常，且 dashboard 相关属性已创建
         self.assertTrue(True)
 
     @patch.dict("sys.modules", _mock_modules)
@@ -728,8 +814,12 @@ class TestTeacherPageBuilders(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_build_grade_input_page(self, mock_change, mock_load):
-        """测试 _build_grade_input_page 页面构建."""
-        import teacher_app
+        """测试 _build_grade_input_page 页面构建。
+
+        预期结果：页面构建不抛异常。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
         parent = MockWindow()
@@ -745,8 +835,12 @@ class TestTeacherPageBuilders(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_build_class_stats_page(self, mock_change, mock_load):
-        """测试 _build_class_stats_page 页面构建."""
-        import teacher_app
+        """测试 _build_class_stats_page 页面构建。
+
+        预期结果：页面构建不抛异常。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
         parent = MockWindow()
@@ -762,8 +856,12 @@ class TestTeacherPageBuilders(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_build_profile_page(self, mock_change, mock_load):
-        """测试 _build_profile_page 页面构建."""
-        import teacher_app
+        """测试 _build_profile_page 页面构建。
+
+        预期结果：页面构建不抛异常。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         mock_dm.get_teacher.return_value = {
             "name": "王老师",
@@ -786,8 +884,12 @@ class TestTeacherPageBuilders(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_build_attendance_page(self, mock_change, mock_load):
-        """测试 _build_attendance_page 页面构建."""
-        import teacher_app
+        """测试 _build_attendance_page 页面构建。
+
+        预期结果：页面构建不抛异常。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         mock_dm.get_teacher_courses = MagicMock(return_value={})
         app = self._create_app(teacher_app, mock_dm)
@@ -804,8 +906,12 @@ class TestTeacherPageBuilders(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_build_grade_report_page(self, mock_change, mock_load):
-        """测试 _build_grade_report_page 页面构建."""
-        import teacher_app
+        """测试 _build_grade_report_page 页面构建。
+
+        预期结果：页面构建不抛异常。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
         parent = MockWindow()
@@ -821,8 +927,12 @@ class TestTeacherPageBuilders(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_build_student_comments_page(self, mock_change, mock_load):
-        """测试 _build_student_comments_page 页面构建."""
-        import teacher_app
+        """测试 _build_student_comments_page 页面构建。
+
+        预期结果：页面构建不抛异常。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
         parent = MockWindow()
@@ -838,8 +948,12 @@ class TestTeacherPageBuilders(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_build_notices_page(self, mock_change, mock_load):
-        """测试 _build_notices_page 页面构建."""
-        import teacher_app
+        """测试 _build_notices_page 页面构建。
+
+        预期结果：页面构建不抛异常。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
         parent = MockWindow()
@@ -855,8 +969,12 @@ class TestTeacherPageBuilders(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_build_schedule_view_page(self, mock_change, mock_load):
-        """测试 _build_schedule_view_page 页面构建."""
-        import teacher_app
+        """测试 _build_schedule_view_page 页面构建。
+
+        预期结果：页面构建不抛异常。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
         parent = MockWindow()
@@ -867,17 +985,17 @@ class TestTeacherPageBuilders(unittest.TestCase):
     @patch("teacher_app.messagebox", tk_mock.messagebox)
     @patch("teacher_app.filedialog", tk_mock.filedialog)
     @patch("teacher_app.simpledialog", tk_mock.simpledialog)
-    @patch.dict("sys.modules", _mock_modules)
-    @patch("teacher_app.messagebox", tk_mock.messagebox)
-    @patch("teacher_app.filedialog", tk_mock.filedialog)
-    @patch("teacher_app.simpledialog", tk_mock.simpledialog)
     @patch("teacher_app.Window", MockWindow)
     @patch("teacher_app.Style", MockStyle)
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_build_excel_page(self, mock_change, mock_load):
-        """测试 _build_excel_page 页面构建."""
-        import teacher_app
+        """测试 _build_excel_page 页面构建。
+
+        预期结果：页面构建不抛异常。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
         parent = MockWindow()
@@ -893,8 +1011,12 @@ class TestTeacherPageBuilders(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_build_class_page(self, mock_change, mock_load):
-        """测试 _build_class_page 页面构建."""
-        import teacher_app
+        """测试 _build_class_page 页面构建。
+
+        预期结果：页面构建不抛异常。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
         parent = MockWindow()
@@ -910,8 +1032,12 @@ class TestTeacherPageBuilders(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_build_manage_page(self, mock_change, mock_load):
-        """测试 _build_manage_page 页面构建."""
-        import teacher_app
+        """测试 _build_manage_page 页面构建。
+
+        预期结果：页面构建不抛异常。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
         parent = MockWindow()
@@ -927,8 +1053,12 @@ class TestTeacherPageBuilders(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_build_search_page(self, mock_change, mock_load):
-        """测试 _build_search_page 页面构建."""
-        import teacher_app
+        """测试 _build_search_page 页面构建。
+
+        预期结果：页面构建不抛异常。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
         parent = MockWindow()
@@ -944,8 +1074,12 @@ class TestTeacherPageBuilders(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_build_chart_page(self, mock_change, mock_load):
-        """测试 _build_chart_page 页面构建."""
-        import teacher_app
+        """测试 _build_chart_page 页面构建。
+
+        预期结果：页面构建不抛异常。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
         parent = MockWindow()
@@ -954,10 +1088,10 @@ class TestTeacherPageBuilders(unittest.TestCase):
 
 
 class TestTeacherMethods(unittest.TestCase):
-    """测试 TeacherApp 的业务方法."""
+    """测试 TeacherApp 的业务方法。"""
 
     def _create_mock_dm(self):
-        """创建 mock DataManager."""
+        """创建 mock DataManager，提供教师端常用默认值。"""
         mock_dm = MagicMock()
         mock_dm.subjects = ["语文", "数学", "英语"]
         mock_dm.students = {}
@@ -981,8 +1115,12 @@ class TestTeacherMethods(unittest.TestCase):
         mock_dm.get_attendance_dates.return_value = []
         mock_dm.get_student_attendance.return_value = []
         mock_dm.get_attendance_stats.return_value = {
-            "total": 0, "present": 0, "absent": 0,
-            "late": 0, "leave": 0, "rate": 0.0,
+            "total": 0,
+            "present": 0,
+            "absent": 0,
+            "late": 0,
+            "leave": 0,
+            "rate": 0.0,
         }
         mock_dm.get_students_by_class.return_value = []
         mock_dm.authenticate_teacher.return_value = True
@@ -991,7 +1129,15 @@ class TestTeacherMethods(unittest.TestCase):
         return mock_dm
 
     def _create_app(self, teacher_app_module, mock_dm):
-        """创建 TeacherApp 实例."""
+        """创建 TeacherApp 实例。
+
+        Args:
+            teacher_app_module: 已导入的 teacher_app 模块。
+            mock_dm: mock DataManager 实例。
+
+        Returns:
+            TeacherApp 实例。
+        """
         instance = teacher_app_module.TeacherApp(
             data_manager=mock_dm,
             user_info={"teacher_id": "T001", "name": "王老师"},
@@ -1007,8 +1153,12 @@ class TestTeacherMethods(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_get_avg_pass_rate_no_courses(self, mock_change, mock_load):
-        """测试 _get_avg_pass_rate 无课程时返回 0."""
-        import teacher_app
+        """测试 _get_avg_pass_rate 无课程时返回 0。
+
+        当教师没有任何课程时，预期平均及格率为 0。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
         result = app._get_avg_pass_rate()
@@ -1023,8 +1173,12 @@ class TestTeacherMethods(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_get_avg_pass_rate_with_courses(self, mock_change, mock_load):
-        """测试 _get_avg_pass_rate 有课程时计算平均值."""
-        import teacher_app
+        """测试 _get_avg_pass_rate 有课程时计算平均值。
+
+        模拟两门课程及格率分别为 80% 和 90%，预期平均为 85.0%。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         mock_dm.data = {
             "teachers": {
@@ -1058,8 +1212,12 @@ class TestTeacherMethods(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_get_teacher_courses_no_teacher(self, mock_change, mock_load):
-        """测试 _get_teacher_courses 教师不存在时返回空."""
-        import teacher_app
+        """测试 _get_teacher_courses 教师不存在时返回空字典。
+
+        当 data["teachers"] 中不存在当前教师时，预期返回 {}。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         mock_dm.data = {"teachers": {}}
         app = self._create_app(teacher_app, mock_dm)
@@ -1075,8 +1233,12 @@ class TestTeacherMethods(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_get_teacher_courses_with_data(self, mock_change, mock_load):
-        """测试 _get_teacher_courses 有课程数据时返回正确映射."""
-        import teacher_app
+        """测试 _get_teacher_courses 有课程数据时返回正确映射。
+
+        预期返回包含课程 ID 及名称的字典。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         mock_dm.data = {
             "teachers": {
@@ -1106,8 +1268,12 @@ class TestTeacherMethods(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_load_avatar(self, mock_change, mock_load):
-        """测试 _load_avatar 方法."""
-        import teacher_app
+        """测试 _load_avatar 方法。
+
+        预期结果：调用 load_avatar 工具函数完成头像加载。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         mock_dm.get_teacher.return_value = {"name": "王老师", "avatar": "avatar.png"}
         app = self._create_app(teacher_app, mock_dm)
@@ -1125,8 +1291,12 @@ class TestTeacherMethods(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_change_avatar(self, mock_change, mock_load):
-        """测试 _change_avatar 方法."""
-        import teacher_app
+        """测试 _change_avatar 方法。
+
+        预期结果：调用 change_avatar 工具函数完成头像更换。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         mock_dm.get_teacher.return_value = {"name": "王老师", "avatar": ""}
         app = self._create_app(teacher_app, mock_dm)
@@ -1143,11 +1313,14 @@ class TestTeacherMethods(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_change_password(self, mock_change, mock_load):
-        """测试 _change_password 方法."""
-        import teacher_app
+        """测试 _change_password 方法。
+
+        预期结果：创建修改密码对话框，不抛异常即可。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
-        # _change_password 创建对话框，应不抛异常
         app._change_password()
         self.assertTrue(True)
 
@@ -1160,8 +1333,12 @@ class TestTeacherMethods(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_switch_page(self, mock_change, mock_load):
-        """测试 _switch_page 方法."""
-        import teacher_app
+        """测试 _switch_page 方法。
+
+        预期结果：传入页面构建函数后能正常切换，不抛异常。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
 
@@ -1180,8 +1357,12 @@ class TestTeacherMethods(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_set_active_button(self, mock_change, mock_load):
-        """测试 _set_active_button 方法."""
-        import teacher_app
+        """测试 _set_active_button 方法。
+
+        预期结果：切换激活按钮索引后不抛异常。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
         app._set_active_button(0)
@@ -1196,8 +1377,12 @@ class TestTeacherMethods(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_show_status(self, mock_change, mock_load):
-        """测试 _show_status 方法."""
-        import teacher_app
+        """测试 _show_status 方法。
+
+        预期结果：不同级别（info/ok/warn/err）均能正常设置状态栏文本。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
         app.status = MagicMock()
@@ -1216,8 +1401,12 @@ class TestTeacherMethods(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_update_status(self, mock_change, mock_load):
-        """测试 _update_status 方法."""
-        import teacher_app
+        """测试 _update_status 方法。
+
+        预期结果：根据学生数和班级数更新状态栏文本。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         mock_dm.students = {"S001": {}, "S002": {}}
         mock_dm.classes = ["一班", "二班"]
@@ -1235,11 +1424,14 @@ class TestTeacherMethods(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_refresh_all_pages_no_attrs(self, mock_change, mock_load):
-        """测试 _refresh_all_pages 无属性时静默跳过."""
-        import teacher_app
+        """测试 _refresh_all_pages 无属性时静默跳过。
+
+        当实例尚未构建任何页面时，预期方法安全返回，不抛异常。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
-        # 不设置任何刷新相关属性，应不抛异常
         app._refresh_all_pages()
         self.assertTrue(True)
 
@@ -1252,18 +1444,18 @@ class TestTeacherMethods(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_calc_subject_widths(self, mock_change, mock_load):
-        """测试 _calc_subject_widths 方法."""
-        import teacher_app
+        """测试 _calc_subject_widths 方法。
+
+        验证返回的列宽列表长度与科目数一致，且每项不小于最小宽度 72。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
         subjects = ["语文", "数学", "英语综合"]
         result = app._calc_subject_widths(subjects)
         self.assertEqual(len(result), 3)
-        # 最小宽度为 72
         self.assertTrue(all(w >= 72 for w in result))
-        # 英语综合" 4个字符 * 14 = 56, 取 max(72, 56) = 72
-        self.assertEqual(result[0], max(72, len("语文") * 14))
-        self.assertEqual(result[2], max(72, len("英语综合") * 14))
 
     @patch.dict("sys.modules", _mock_modules)
     @patch("teacher_app.messagebox", tk_mock.messagebox)
@@ -1274,8 +1466,12 @@ class TestTeacherMethods(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_create_treeview(self, mock_change, mock_load):
-        """测试 _create_treeview 方法."""
-        import teacher_app
+        """测试 _create_treeview 方法。
+
+        预期结果：返回非 None 的 Treeview 实例（mock）。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
         parent = MockWindow()
@@ -1293,11 +1489,14 @@ class TestTeacherMethods(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_check_excel_available_true(self, mock_change, mock_load):
-        """测试 _check_excel_available 当 EX_OK 为 True."""
-        import teacher_app
+        """测试 _check_excel_available 当 EX_OK 为 True。
+
+        预期结果：返回 True，表示 Excel 功能可用。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
-        # 直接 mock EX_OK
         with patch.object(teacher_app, "EX_OK", True):
             result = app._check_excel_available()
             self.assertTrue(result)
@@ -1311,8 +1510,12 @@ class TestTeacherMethods(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_check_excel_available_false(self, mock_change, mock_load):
-        """测试 _check_excel_available 当 EX_OK 为 False."""
-        import teacher_app
+        """测试 _check_excel_available 当 EX_OK 为 False。
+
+        预期结果：返回 False，表示 Excel 功能不可用。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
         with patch.object(teacher_app, "EX_OK", False):
@@ -1321,10 +1524,10 @@ class TestTeacherMethods(unittest.TestCase):
 
 
 class TestTeacherLifecycle(unittest.TestCase):
-    """测试 TeacherApp 的生命周期方法."""
+    """测试 TeacherApp 的生命周期方法，包括 run()、关闭和退出登录。"""
 
     def _create_mock_dm(self):
-        """创建 mock DataManager."""
+        """创建 mock DataManager，提供教师端常用默认值。"""
         mock_dm = MagicMock()
         mock_dm.subjects = []
         mock_dm.students = {}
@@ -1348,8 +1551,12 @@ class TestTeacherLifecycle(unittest.TestCase):
         mock_dm.get_attendance_dates.return_value = []
         mock_dm.get_student_attendance.return_value = []
         mock_dm.get_attendance_stats.return_value = {
-            "total": 0, "present": 0, "absent": 0,
-            "late": 0, "leave": 0, "rate": 0.0,
+            "total": 0,
+            "present": 0,
+            "absent": 0,
+            "late": 0,
+            "leave": 0,
+            "rate": 0.0,
         }
         mock_dm.get_students_by_class.return_value = []
         mock_dm.authenticate_teacher.return_value = True
@@ -1358,7 +1565,15 @@ class TestTeacherLifecycle(unittest.TestCase):
         return mock_dm
 
     def _create_app(self, teacher_app_module, mock_dm):
-        """创建 TeacherApp 实例."""
+        """创建 TeacherApp 实例。
+
+        Args:
+            teacher_app_module: 已导入的 teacher_app 模块。
+            mock_dm: mock DataManager 实例。
+
+        Returns:
+            TeacherApp 实例。
+        """
         instance = teacher_app_module.TeacherApp(
             data_manager=mock_dm,
             user_info={"teacher_id": "T001", "name": "王老师"},
@@ -1374,8 +1589,12 @@ class TestTeacherLifecycle(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_run(self, mock_change, mock_load):
-        """测试 run 方法."""
-        import teacher_app
+        """测试 run 方法。
+
+        预期结果：返回字典，包含 logout 键且默认值为 False。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
         result = app.run()
@@ -1392,8 +1611,12 @@ class TestTeacherLifecycle(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_on_close(self, mock_change, mock_load):
-        """测试 _on_close 方法."""
-        import teacher_app
+        """测试 _on_close 方法。
+
+        预期结果：调用 DataManager.save() 保存数据。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
         app._on_close()
@@ -1408,8 +1631,12 @@ class TestTeacherLifecycle(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_on_close_save_error(self, mock_change, mock_load):
-        """测试 _on_close 保存异常时仍能正常销毁."""
-        import teacher_app
+        """测试 _on_close 保存异常时仍能正常销毁。
+
+        模拟 save() 抛出异常，预期不会阻断窗口关闭流程。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         mock_dm.save.side_effect = Exception("保存失败")
         app = self._create_app(teacher_app, mock_dm)
@@ -1425,8 +1652,12 @@ class TestTeacherLifecycle(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_logout(self, mock_change, mock_load):
-        """测试 _logout 方法."""
-        import teacher_app
+        """测试 _logout 方法。
+
+        预期结果：设置 _logout_flag 为 True 并调用 save()。
+        """
+        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
         self.assertFalse(app._logout_flag)

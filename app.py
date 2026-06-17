@@ -481,7 +481,6 @@ class App:
 
         self.da_cards = {}  # 存储卡片数值标签，便于刷新
 
-        """创建信息卡片组件."""
         def create_card(container, icon, title, value, color):
             card = tk.Frame(container, bg="white", relief="solid", bd=1)
             card.pack(side="left", fill="both", expand=True, padx=5)
@@ -586,6 +585,7 @@ class App:
                 w.destroy()
             if MAT_OK and self.dm.subjects:
                 try:
+                    # 计算每个科目的平均分，缺失分析结果时默认 0
                     avgs = [
                         (
                             self.dm.analyze_subject(s)["avg"]
@@ -596,6 +596,7 @@ class App:
                     ]
                     fig = Figure(figsize=(6, 3.5))
                     ax = fig.add_subplot(111)
+                    # 为柱状条分配颜色，循环使用预设色板
                     bar_colors = [
                         "#6366F1",
                         "#8B5CF6",
@@ -605,6 +606,7 @@ class App:
                         "#EF4444",
                     ][: len(avgs)]
                     bars = ax.bar(self.dm.subjects, avgs, color=bar_colors, width=0.6)
+                    # 在柱顶标注具体均分值
                     for bar, val in zip(bars, avgs):
                         ax.text(
                             bar.get_x() + bar.get_width() / 2,
@@ -616,6 +618,7 @@ class App:
                             fontweight="bold",
                         )
                     ax.set_ylim(0, 105)
+                    # 绘制 60 分及格参考线
                     ax.axhline(60, color="#EF4444", ls="--", alpha=0.7, label="及格线")
                     ax.set_title(
                         "科目均分对比",
@@ -644,6 +647,7 @@ class App:
                 w.destroy()
             warnings = self.dm.get_warnings()
             if warnings:
+                # 仅展示前 10 条预警，避免界面过长
                 for w in warnings[:10]:
                     fails = ", ".join([f"{s}:{sc}" for s, sc in w.get("fails", [])])
                     name = w.get("name", "?")
@@ -660,6 +664,7 @@ class App:
         if hasattr(self, "da_hist_frame"):
             for w in self.da_hist_frame.winfo_children():
                 w.destroy()
+            # 取最近 5 条历史记录并按时间倒序展示
             history = self.dm.get_history()[-5:]
             if history:
                 for record in reversed(history):
@@ -791,10 +796,12 @@ class App:
 
     def _refresh_account_tree(self) -> None:
         """刷新账号管理表格."""
+        # 清空旧表格，避免重复渲染
         for w in self.acc_tree_frame.winfo_children():
             w.destroy()
 
         if self.acc_tab == "teacher":
+            # 教师账号列：工号、姓名、授课数量、操作
             columns = ["工号", "姓名", "授课数量", "操作"]
             widths = [120, 120, 100, 150]
             tree = ttk.Treeview(
@@ -809,6 +816,7 @@ class App:
             tree.pack(fill="both", expand=True)
             tree.tag_configure("odd", background="#F8FAFC")
             tree.tag_configure("even", background="#FFFFFF")
+            # 遍历教师数据并插入表格，应用斑马纹
             for idx, (tid, tinfo) in enumerate(self.dm.teachers.items()):
                 tag = "odd" if idx % 2 == 0 else "even"
                 course_count = len(tinfo.get("course_ids", []))
@@ -820,6 +828,7 @@ class App:
                 )
             self.acc_tree = tree
         else:
+            # 学生账号列：学号、姓名、班级、操作
             columns = ["学号", "姓名", "班级", "操作"]
             widths = [120, 120, 120, 150]
             tree = ttk.Treeview(
@@ -834,6 +843,7 @@ class App:
             tree.pack(fill="both", expand=True)
             tree.tag_configure("odd", background="#F8FAFC")
             tree.tag_configure("even", background="#FFFFFF")
+            # 遍历学生数据并插入表格
             for idx, (sid, sinfo) in enumerate(self.dm.students.items()):
                 tag = "odd" if idx % 2 == 0 else "even"
                 tree.insert(
@@ -869,7 +879,6 @@ class App:
         name_var = tk.StringVar()
         tk.Entry(dialog, textvariable=name_var, font=("微软雅黑", 11)).pack()
 
-        """添加新记录."""
         def do_add():
             account_id = id_var.get().strip()
             name = name_var.get().strip()
@@ -978,7 +987,6 @@ class App:
             class_var.set(vals[2] if len(vals) > 2 else "")
             tk.Entry(dialog, textvariable=class_var, font=("微软雅黑", 11)).pack()
 
-        """保存当前编辑."""
         def do_save():
             name = name_var.get().strip()
             if not name:
@@ -1120,7 +1128,6 @@ class App:
             main_frame, textvariable=class_var, font=("微软雅黑", 11), width=25
         ).grid(row=3, column=1, pady=5)
 
-        """添加新记录."""
         def do_add():
             cid = id_var.get().strip()
             name = name_var.get().strip()
@@ -1221,7 +1228,6 @@ class App:
             main_frame, textvariable=class_var, font=("微软雅黑", 11), width=25
         ).grid(row=2, column=1, pady=5)
 
-        """保存当前编辑."""
         def do_save():
             name = name_var.get().strip()
             tid = teacher_var.get().strip()
@@ -1297,7 +1303,6 @@ class App:
         pwd_entry = tk.Entry(pwd_frame, textvariable=pwd_var, show="*", **entry_opts)
         pwd_entry.pack(side="left")
 
-        """切换密码显示/隐藏."""
         def toggle_pwd():
             if pwd_entry.cget("show") == "*":
                 pwd_entry.config(show="")
@@ -1344,7 +1349,6 @@ class App:
             row=4, column=1, sticky="w"
         )
 
-        """保存个人资料."""
         def save_profile():
             admin = self.dm.get_admin()
             self.dm.update_admin_profile(
@@ -1436,7 +1440,6 @@ class App:
         confirm_var = tk.StringVar()
         tk.Entry(dialog, textvariable=confirm_var, show="*").pack()
 
-        """执行密码修改操作."""
         def do_change():
             old = old_var.get().strip()
             new = new_var.get().strip()
@@ -1876,7 +1879,6 @@ class App:
             score = stu["scores"].get(subject)
             if score is not None:
                 rows.append((sid, stu["name"], stu.get("class", ""), score))
-        """根据分数返回等级标签文本."""
         rows.sort(key=lambda x: x[3], reverse=True)
 
         for rank, (sid, name, cls, score) in enumerate(rows, 1):
@@ -1887,7 +1889,6 @@ class App:
                 values=(rank, sid, name, cls, score, level),
                 tags=(tag,),
             )
-            """管理科目增删改."""
 
     @staticmethod
     def _get_level_tag(score: float) -> tuple[str, str]:
@@ -1945,7 +1946,6 @@ class App:
 
         # 按钮栏：拉开间距 + 不同颜色样式
         btn_frame = tk.Frame(dialog)
-        """刷新科目相关界面."""
         btn_frame.pack(pady=15)
 
         ttk.Button(
@@ -2118,7 +2118,6 @@ class App:
             anchor="w", padx=20, pady=(0, 5)
         )
         content_text = tk.Text(dialog, font=("微软雅黑", 11), width=50, height=10)
-        """保存编辑数据."""
         content_text.pack(padx=20, pady=(0, 15), fill="both", expand=True)
 
         def _save():
@@ -2423,7 +2422,6 @@ class App:
             form, values=session_vals, font=("微软雅黑", 10), width=22
         )
         session_combo.grid(row=1, column=1, pady=6)
-        """确认操作."""
         entries["session_entry"] = session_combo
 
         def confirm():
@@ -2545,7 +2543,6 @@ class App:
         entries["period_entry"].insert(0, str(values[3]))
         entries["course_entry"].insert(0, str(values[4]))
         entries["teacher_entry"].insert(0, str(values[5]))
-        """确认操作."""
         entries["room_entry"].insert(0, str(values[6]))
 
         def confirm():
@@ -2686,7 +2683,6 @@ class App:
                 ),
                 tags=(tag,),
             )
-            """清空历史记录."""
 
         def _clear_history():
             if not messagebox.askyesno(
@@ -2741,12 +2737,6 @@ class App:
 
     def _refresh_all_pages(self) -> None:
         """计算科目列宽度."""
-        """刷新所有页面的数据和 UI 显示.
-
-        依次调用各页面的刷新方法，包括成绩管理、查询、班级、
-        Excel、录入、分析和图表页面。如果某页面表格已被销毁，
-        则静默跳过，避免程序崩溃。
-        """
         if hasattr(self, "mg_tree"):
             self._refresh_manage_tree()
         if hasattr(self, "ex_tree"):
@@ -2877,7 +2867,6 @@ class App:
         entry = tk.Entry(self.in_tree, font=("微软雅黑", 10), relief="solid")
         entry.insert(0, self.in_tree.item(row_id, "values")[col_index])
         entry.place(x=x, y=y, width=w, height=h)
-        """提交行内编辑结果."""
         entry.focus_set()
 
         def _commit_edit() -> None:
@@ -2917,7 +2906,7 @@ class App:
             sid = str(vals[1]).strip()
             name = str(vals[2]).strip()
             cls = str(vals[3]).strip()
-            scores_raw = vals[4:4 + len(subjects)]
+            scores_raw = vals[4 : 4 + len(subjects)]
 
             if (
                 not sid
@@ -3206,7 +3195,6 @@ class App:
         )
         if classes:
             class_combo.current(0)
-        """执行数据导出."""
         class_combo.pack(side="left", padx=5)
 
         def do_export() -> None:
@@ -3550,7 +3538,7 @@ class App:
             )
 
             if filter_score != "全部":
-                score_vals = vals[3:3 + subject_count]
+                score_vals = vals[3 : 3 + subject_count]
                 pass_ok = True
                 has_60_69 = False
                 has_70_89 = False
@@ -3611,7 +3599,7 @@ class App:
         for idx, vals in enumerate(rows):
             base_tag = "odd" if idx % 2 == 0 else "even"
 
-            score_vals = vals[3:3 + subject_count]
+            score_vals = vals[3 : 3 + subject_count]
             has_fail = False
             has_warn = False
             has_good = True

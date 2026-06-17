@@ -1,4 +1,13 @@
-"""学生界面模块 - Student App for Student Grade Management System."""
+"""学生界面模块 - Student App for Student Grade Management System.
+
+本模块实现了学生专属界面，提供仪表盘、个人信息管理、成绩查询、
+排名查询、成绩分析报告、通知公告以及课表查看等功能。界面采用
+左侧导航栏 + 右侧动态内容区的布局，基于 tkinter 与 ttkbootstrap
+构建。
+
+主要组件:
+    StudentApp: 学生应用主类，负责界面初始化、页面切换与数据展示。
+"""
 
 import logging
 import tkinter as tk
@@ -9,6 +18,7 @@ from ttkbootstrap import Window, Style
 from modules.data_manager import DataManager
 from src.utils.avatar_utils import load_avatar, change_avatar
 
+# 配置模块级日志记录器，用于输出运行时信息与警告
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 if not logger.handlers:
@@ -18,12 +28,31 @@ if not logger.handlers:
     )
     logger.addHandler(_handler)
 
+# 界面主题色定义：主色调为青色，用于头部、侧边栏及按钮高亮
 TEAL_COLOR = "#00BFA5"
 TEAL_DARK = "#00897B"
 
 
 class StudentApp:
-    """学生专属界面类，带左侧菜单栏和右侧动态页面."""
+    """学生专属界面类，带左侧菜单栏和右侧动态页面.
+
+    本类封装了学生端所有 UI 的构建与交互逻辑，包括：
+    - 初始化主窗口并配置全局样式；
+    - 构建顶部标题栏、左侧导航栏及右侧内容区；
+    - 提供多个功能页面的动态切换（仪表盘、个人信息、成绩查询等）；
+    - 处理数据查询、头像更换、密码修改及报告导出等业务操作。
+
+    Attributes:
+        dm (DataManager): 数据管理器实例，负责学生数据与成绩的增删改查。
+        user_info (dict): 当前登录学生的用户信息字典。
+        student_id (str): 当前学生学号。
+        student_name (str): 当前学生姓名。
+        class_name (str): 当前学生所在班级名称。
+        win (Window): ttkbootstrap 主窗口实例。
+        content_area (tk.Frame): 右侧内容展示区域。
+        page_builders (dict): 页面名称到构建函数的映射。
+        nav_buttons (list): 导航按钮/标签控件列表，用于管理选中状态。
+    """
 
     def __init__(
         self,
@@ -32,22 +61,27 @@ class StudentApp:
     ) -> None:
         """初始化学生界面.
 
+        创建主窗口、初始化数据管理器、加载用户信息，并配置全局样式与 UI 布局。
+
         Args:
-            data_manager: 数据管理器实例。
-            user_info: 当前登录学生信息字典。
+            data_manager: 数据管理器实例。若为 None，则自动创建新实例。
+            user_info: 当前登录学生信息字典，包含 student_id、name、class 等字段。
         """
+        # 初始化数据管理器与用户信息
         self.dm = data_manager if data_manager else DataManager()
         self.user_info = user_info or {}
         self.student_id = self.user_info.get("student_id", "")
         self.student_name = self.user_info.get("name", "学生")
         self.class_name = self.user_info.get("class", "")
 
+        # 创建主窗口并设置基本属性
         self.win = Window(themename="cosmo")
         self.win.title("学生中心 - 学生成绩管理系统")
         self.win.state("zoomed")
         self.win.minsize(1024, 768)
         self.win.configure(bg="#F3F4F6")
 
+        # 配置全局 ttk 样式，统一 Treeview 与侧边栏按钮外观
         style = Style("cosmo")
         style.configure("Treeview", font=("微软雅黑", 12), rowheight=36)
         style.configure(
@@ -79,20 +113,26 @@ class StudentApp:
             foreground="white",
         )
 
+        # 构建 UI 并绑定窗口关闭事件，确保数据自动保存
         self._build_ui()
         self.win.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def run(self) -> dict:
         """启动应用程序主循环.
 
+        进入 tkinter 主事件循环，等待用户交互。窗口关闭后返回注销标志。
+
         Returns:
-            包含 logout 标志的字典。
+            包含 logout 标志的字典，例如 {"logout": True} 表示用户主动退出登录。
         """
         self.win.mainloop()
         return {"logout": getattr(self, "_logout", False)}
 
     def _on_close(self) -> None:
-        """窗口关闭时保存数据."""
+        """窗口关闭时的回调处理.
+
+        尝试保存数据并销毁主窗口。若保存失败则记录警告日志，不影响关闭流程。
+        """
         try:
             self.dm.save()
         except Exception as e:
@@ -101,7 +141,12 @@ class StudentApp:
 
     # ========== UI 构建 ==========
     def _build_ui(self) -> None:
-        """构建学生界面布局."""
+        """构建学生界面整体布局.
+
+        依次创建顶部标题栏、主容器（左侧导航栏 + 右侧内容区），
+        并在侧边栏加载学生头像与导航菜单。默认显示仪表盘页面。
+        """
+        # ---------- 顶部标题栏 ----------
         header = tk.Frame(self.win, bg=TEAL_COLOR, height=60)
         header.pack(fill="x")
         header.pack_propagate(False)
@@ -113,6 +158,7 @@ class StudentApp:
             bg=TEAL_COLOR,
         ).pack(side="left", padx=20, pady=12)
 
+        # 右上角用户信息及退出登录按钮
         user_frame = tk.Frame(header, bg=TEAL_COLOR)
         user_frame.pack(side="right", padx=20, pady=12)
 
@@ -139,6 +185,7 @@ class StudentApp:
             pady=4,
         ).pack(side="left")
 
+        # ---------- 主容器：侧边栏 + 内容区 ----------
         main_container = tk.Frame(self.win, bg="#F3F4F6")
         main_container.pack(fill="both", expand=True)
 
@@ -149,17 +196,19 @@ class StudentApp:
         self.content_area = tk.Frame(main_container, bg="white")
         self.content_area.pack(side="right", fill="both", expand=True)
 
-        # 侧边栏顶部头像
+        # ---------- 侧边栏顶部头像区域 ----------
         avatar_frame = tk.Frame(sidebar, bg="#0F766E", height=80)
         avatar_frame.pack(fill="x", pady=(15, 5))
         avatar_frame.pack_propagate(False)
         try:
+            # 从数据管理器读取当前学生数据并加载头像
             student_data = self.dm.students.get(self.student_id, {})
             avatar_path = student_data.get("avatar", "")
             self.sidebar_avatar_label = tk.Label(avatar_frame, bg="#0F766E")
             self.sidebar_avatar_label.pack(pady=5)
             load_avatar(self.sidebar_avatar_label, avatar_path, size=(50, 50))
         except Exception:
+            # 头像加载失败时显示默认 emoji
             tk.Label(
                 avatar_frame, text="👤", font=("微软雅黑", 28), bg="#0F766E", fg="white"
             ).pack(pady=5)
@@ -171,7 +220,7 @@ class StudentApp:
             bg="#0F766E",
         ).pack()
 
-        # 定义页面映射
+        # ---------- 页面映射与导航按钮初始化 ----------
         self.page_builders = {
             "📊 仪表盘": self._build_dashboard_page,
             "个人信息": self._build_profile_page,
@@ -189,7 +238,14 @@ class StudentApp:
         text, builder = list(self.page_builders.items())[idx]
 
         def cmd(b=builder, btn_idx=idx):
-            """命令执行入口."""
+            """导航按钮点击命令.
+
+            切换至对应页面并将该按钮设为选中状态。
+
+            Args:
+                b: 页面构建函数，由闭包捕获。
+                btn_idx: 当前按钮在导航栏中的索引，由闭包捕获。
+            """
             self._switch_page(b)
             self._set_active_button(btn_idx)
 
@@ -223,15 +279,17 @@ class StudentApp:
             btn.pack(fill="x", padx=15, ipady=8)
             self.nav_buttons.append(btn)
 
-        # 默认选中【仪表盘】
+        # 默认选中【仪表盘】并加载对应页面
         self._set_active_button(0)
         self._switch_page(self._build_dashboard_page)
 
     def _switch_page(self, builder_func) -> None:
-        """切换页面.
+        """切换右侧内容页面.
+
+        清空内容区后调用指定构建函数重新渲染页面。
 
         Args:
-            builder_func: 页面构建函数。
+            builder_func: 页面构建函数，接收父 Frame 作为参数。
         """
         for widget in self.content_area.winfo_children():
             widget.destroy()
@@ -240,10 +298,13 @@ class StudentApp:
         builder_func(page_frame)
 
     def _set_active_button(self, active_idx: int) -> None:
-        """设置导航按钮选中状态.
+        """设置导航按钮的选中状态样式.
+
+        根据索引将对应按钮设为高亮样式，其余恢复默认样式。
+        注意：索引 0 为 ttk.Button，其余为 tk.Label，配置方式不同。
 
         Args:
-            active_idx: 选中按钮的索引。
+            active_idx: 当前选中按钮的索引。
         """
         for idx, btn in enumerate(self.nav_buttons):
             if idx == active_idx:
@@ -266,7 +327,10 @@ class StudentApp:
                     )
 
     def _confirm_logout(self) -> None:
-        """确认退出登录."""
+        """确认退出登录.
+
+        弹出确认对话框，用户确认后保存数据、设置注销标志并关闭窗口。
+        """
         if messagebox.askyesno("确认退出", "确定要退出登录吗？"):
             self._logout = True
             try:
@@ -276,13 +340,21 @@ class StudentApp:
             self.win.destroy()
 
     def _get_level(self, score: float | None) -> str:
-        """根据成绩返回等级.
+        """根据成绩分数返回对应等级.
+
+        等级划分标准：
+        - 优秀：>= 90
+        - 良好：>= 80
+        - 中等：>= 70
+        - 及格：>= 60
+        - 不及格：< 60
+        - 未录入：score 为 None
 
         Args:
-            score: 成绩分数。
+            score: 成绩分数，可能为 None。
 
         Returns:
-            等级字符串。
+            等级字符串，如 "优秀"、"及格"、"未录入" 等。
         """
         if score is None:
             return "未录入"
@@ -298,16 +370,27 @@ class StudentApp:
 
     # ========== 仪表盘页面 ==========
     def _build_dashboard_page(self, parent: tk.Frame) -> None:
-        """构建学生仪表盘页面."""
+        """构建学生仪表盘页面.
+
+        仪表盘展示欢迎横幅、统计卡片及操作提示。
+
+        Args:
+            parent: 页面父容器 Frame。
+        """
         self._dashboard_parent = parent
         self._refresh_dashboard()
 
     def _refresh_dashboard(self) -> None:
-        """刷新仪表盘数据."""
+        """刷新仪表盘数据与 UI.
+
+        重新从数据管理器获取学生成绩、统计信息及班级排名，
+        并渲染欢迎横幅、统计卡片与提示信息。
+        """
         parent = self._dashboard_parent
         for w in parent.winfo_children():
             w.destroy()
 
+        # 获取当前学生数据与成绩统计
         student = self.dm.students.get(self.student_id, {})
         scores = student.get("scores", {})
         subjects = list(scores.keys())
@@ -323,6 +406,7 @@ class StudentApp:
                         rank = student_info["rank"]
                         break
 
+        # ---------- 欢迎横幅 ----------
         banner = tk.Frame(parent, bg=TEAL_COLOR, height=80)
         banner.pack(fill="x")
         tk.Label(
@@ -340,11 +424,22 @@ class StudentApp:
             bg=TEAL_COLOR,
         ).pack()
 
+        # ---------- 统计卡片行 ----------
         card_row = tk.Frame(parent, bg="white")
         card_row.pack(fill="x", pady=10)
 
         def create_card(container, icon, title, value, color):
-            """创建信息卡片组件."""
+            """创建仪表盘中的信息卡片组件.
+
+            每个卡片包含图标、标题与数值，水平排列在卡片行中。
+
+            Args:
+                container: 卡片行容器 Frame。
+                icon: 卡片图标字符串。
+                title: 卡片标题。
+                value: 卡片显示数值。
+                color: 数值文本颜色。
+            """
             card = tk.Frame(container, bg="white", relief="solid", bd=1)
             card.pack(side="left", fill="both", expand=True, padx=5)
             tk.Label(
@@ -368,16 +463,18 @@ class StudentApp:
                 bg="white",
             ).pack(anchor="w", padx=10, pady=5)
 
+        # 计算并格式化统计数值
         avg = round(st["avg"], 1) if st else "-"
         total = st.get("total", "-") if st else "-"
-        # 格式化排名显示
         rank_display = f"第 {rank} 名" if rank != "-" else "-"
 
+        # 创建四个统计卡片：科目数、平均分、班级排名、总分
         create_card(card_row, "📚", "已修科目数", len(subjects), TEAL_COLOR)
         create_card(card_row, "📊", "平均分", avg, "#8B5CF6")
         create_card(card_row, "🏆", "班级排名", rank_display, "#10B981")
         create_card(card_row, "📝", "总分", total, "#F59E0B")
 
+        # ---------- 操作提示栏 ----------
         info_frame = tk.Frame(parent, bg="#F0F9FF", bd=1, relief="solid")
         info_frame.pack(fill="x", pady=10)
         tips = (
@@ -393,7 +490,13 @@ class StudentApp:
 
     # ========== 个人信息页面 ==========
     def _build_profile_page(self, parent: tk.Frame) -> None:
-        """构建个人信息页面，包含头像、账号、姓名、手机、邮箱."""
+        """构建个人信息页面.
+
+        展示并允许编辑学生头像、账号（只读）、密码、姓名、手机号与邮箱。
+
+        Args:
+            parent: 页面父容器 Frame。
+        """
         tk.Label(
             parent,
             text="个人信息",
@@ -403,7 +506,7 @@ class StudentApp:
 
         student = self.dm.get_student(self.student_id) or {}
 
-        # 头像区域（水平排列）
+        # ---------- 头像区域 ----------
         avatar_frame = tk.Frame(parent, bg="white")
         avatar_frame.pack(pady=15)
         tk.Label(
@@ -419,7 +522,7 @@ class StudentApp:
             side="left", padx=15
         )
 
-        # 表单区域
+        # ---------- 表单区域 ----------
         form_frame = tk.Frame(parent, bg="white")
         form_frame.pack(pady=10, padx=40)
 
@@ -436,7 +539,7 @@ class StudentApp:
         id_entry.config(state="readonly", readonlybackground="#F3F4F6")
         id_entry.grid(row=0, column=1, sticky="w")
 
-        # 密码
+        # 密码（带显示/隐藏切换）
         tk.Label(form_frame, text="学生密码", font=("微软雅黑", 11), bg="white").grid(
             row=1, column=0, sticky="e", pady=8, padx=10
         )
@@ -447,7 +550,10 @@ class StudentApp:
         pwd_entry.pack(side="left")
 
         def toggle_pwd():
-            """切换密码显示/隐藏."""
+            """切换密码输入框的显示/隐藏状态.
+
+            点击按钮在明文与密文（*）之间切换，并同步更新按钮图标。
+            """
             if pwd_entry.cget("show") == "*":
                 pwd_entry.config(show="")
                 toggle_btn.config(text="🙈")
@@ -494,7 +600,11 @@ class StudentApp:
         )
 
         def save_profile():
-            """保存个人资料."""
+            """保存个人资料到数据管理器.
+
+            收集表单中的姓名、手机、邮箱与密码，调用数据管理器更新学生信息，
+            并刷新界面标题以反映最新的姓名。
+            """
             new_name = name_var.get().strip()
             new_phone = phone_var.get().strip()
             new_email = email_var.get().strip()
@@ -510,11 +620,11 @@ class StudentApp:
                     password=new_pwd,
                     avatar=student.get("avatar", ""),
                 )
-                # 强制再保存一次，确保写入
+                # 强制再保存一次，确保写入持久化存储
                 self.dm.save()
                 self.student_name = new_name
                 messagebox.showinfo("成功", "个人信息已保存")
-                # 刷新顶部标题
+                # 刷新顶部标题栏显示的学生姓名
                 for w in self.win.winfo_children():
                     if isinstance(w, tk.Frame) and w.winfo_children():
                         for child in w.winfo_children():
@@ -545,7 +655,10 @@ class StudentApp:
         ).pack()
 
     def _load_avatar(self) -> None:
-        """加载学生头像（个人中心 + 侧边栏）."""
+        """加载并显示学生头像.
+
+        同时更新个人中心头像与侧边栏头像（若已初始化）。
+        """
         student = self.dm.get_student(self.student_id) or {}
         avatar_path = student.get("avatar", "")
         # 更新个人中心头像
@@ -556,12 +669,21 @@ class StudentApp:
         self.win.update_idletasks()
 
     def _change_avatar(self) -> None:
-        """更换学生头像."""
+        """更换学生头像.
+
+        打开头像更换对话框，用户选择新头像后通过回调保存路径并刷新显示。
+        """
         student = self.dm.get_student(self.student_id) or {}
         current = student.get("avatar", "")
 
         def save_callback(path: str) -> None:
-            """保存头像路径并刷新显示."""
+            """头像保存回调函数.
+
+            将新头像路径更新到学生数据中，并刷新界面头像显示。
+
+            Args:
+                path: 新头像文件的绝对路径。
+            """
             print("=" * 50)
             print("保存头像路径:", path)
             try:
@@ -584,7 +706,10 @@ class StudentApp:
             )
 
     def _change_password(self) -> None:
-        """修改个人密码."""
+        """修改个人密码.
+
+        弹出 Toplevel 窗口，要求输入原密码与新密码，验证通过后更新数据。
+        """
         top = tk.Toplevel(self.win)
         top.title("修改密码")
         top.geometry("300x180")
@@ -592,6 +717,7 @@ class StudentApp:
         top.transient(self.win)
         top.grab_set()
 
+        # 将弹窗定位在主窗口右下方偏移处
         win_x = self.win.winfo_x() + 60
         win_y = self.win.winfo_y() + 120
         top.geometry(f"+{win_x}+{win_y}")
@@ -605,7 +731,10 @@ class StudentApp:
         new_entry.pack()
 
         def do_change():
-            """执行密码修改操作."""
+            """执行密码修改操作.
+
+            校验原密码正确性及非空后，更新数据并关闭弹窗。
+            """
             old = old_entry.get().strip()
             new_pwd = new_entry.get().strip()
             if not old or not new_pwd:
@@ -626,8 +755,10 @@ class StudentApp:
     def _build_scores_page(self, parent: tk.Frame) -> None:
         """构建成绩查询页面.
 
+        以 Treeview 表格展示各科成绩与等级，并在底部显示统计摘要。
+
         Args:
-            parent: 父容器。
+            parent: 页面父容器 Frame。
         """
         tk.Label(
             parent,
@@ -638,6 +769,7 @@ class StudentApp:
 
         stats = self.dm.stats(self.student_id)
 
+        # 成绩表格容器
         table_frame = tk.Frame(parent, bg="white", bd=1, relief="solid")
         table_frame.pack(fill="both", expand=True, padx=10, pady=5)
 
@@ -649,6 +781,7 @@ class StudentApp:
             tree.column(col, width=width, anchor="center")
         tree.pack(fill="both", expand=True, padx=5, pady=5)
 
+        # 配置各等级对应的背景色与前景色标签
         level_tags = {
             "优秀": ("#D1FAE5", "#10B981"),
             "良好": ("#DBEAFE", "#3B82F6"),
@@ -660,6 +793,7 @@ class StudentApp:
         for tag, (bg, fg) in level_tags.items():
             tree.tag_configure(tag, background=bg, foreground=fg)
 
+        # 遍历成绩数据并插入表格
         score_values = []
         if stats:
             scores = stats.get("scores", {})
@@ -670,7 +804,7 @@ class StudentApp:
                 if score is not None:
                     score_values.append(score)
 
-        # 统计摘要
+        # ---------- 统计摘要 ----------
         summary_frame = tk.Frame(parent, bg="white")
         summary_frame.pack(pady=10, fill="x")
 
@@ -708,8 +842,10 @@ class StudentApp:
     def _build_ranking_page(self, parent: tk.Frame) -> None:
         """构建排名查询页面.
 
+        左侧展示单科班级排名，右侧展示总分班级排名。支持科目筛选。
+
         Args:
-            parent: 父容器。
+            parent: 页面父容器 Frame。
         """
         tk.Label(
             parent,
@@ -730,6 +866,7 @@ class StudentApp:
 
         subjects = list(stats.get("scores", {}).keys())
 
+        # 科目选择控件
         ctrl_frame = tk.Frame(parent, bg="white")
         ctrl_frame.pack(pady=5)
         tk.Label(
@@ -748,6 +885,7 @@ class StudentApp:
         )
         subject_combo.pack(side="left", padx=5)
 
+        # 左右分栏容器
         container = tk.Frame(parent, bg="white")
         container.pack(fill="both", expand=True, padx=10, pady=5)
 
@@ -772,6 +910,7 @@ class StudentApp:
             fg="#0F766E",
         ).pack(anchor="w", pady=(0, 5))
 
+        # 单科排名 Treeview
         sub_tree = ttk.Treeview(
             left_frame,
             columns=["排名", "学号", "姓名", "成绩"],
@@ -784,6 +923,7 @@ class StudentApp:
         sub_tree.pack(fill="both", expand=True)
         sub_tree.tag_configure("me", background="#DBEAFE")
 
+        # 总分排名 Treeview
         total_tree = ttk.Treeview(
             right_frame,
             columns=["排名", "学号", "姓名", "总分", "平均分"],
@@ -800,7 +940,10 @@ class StudentApp:
         total_tree.tag_configure("me", background="#DBEAFE")
 
         def refresh_subject_rank(*_):
-            """刷新科目排名显示."""
+            """刷新单科排名 Treeview.
+
+            根据选中的科目从数据管理器获取排名列表，并高亮当前学生所在行。
+            """
             sub = subject_var.get()
             if not sub:
                 return
@@ -822,11 +965,12 @@ class StudentApp:
                     tags=(tag,),
                 )
 
+        # 绑定科目选择变动事件，自动刷新排名
         subject_var.trace_add("write", refresh_subject_rank)
         if subjects:
             subject_combo.set(subjects[0])
 
-        # 总分排名（班级）
+        # 加载总分排名（班级）
         if self.class_name:
             class_stats = self.dm.get_class_stats(self.class_name)
             if class_stats:
@@ -849,8 +993,11 @@ class StudentApp:
     def _build_analysis_page(self, parent: tk.Frame) -> None:
         """构建成绩分析报告页面.
 
+        生成包含总体评价、成绩预警、详细分析数据与学习建议的报告，
+        并支持导出为 TXT 文件。
+
         Args:
-            parent: 父容器。
+            parent: 页面父容器 Frame。
         """
         tk.Label(
             parent,
@@ -873,9 +1020,10 @@ class StudentApp:
         total = stats["total"]
         avg = stats["avg"]
 
-        # 总体评价
+        # ---------- 总体评价 ----------
         eval_frame = tk.Frame(parent, bg="#F0F9FF", bd=1, relief="solid")
         eval_frame.pack(fill="x", padx=10, pady=10)
+        # 根据平均分区间生成不同评价文本与颜色
         if avg >= 90:
             eval_text = "表现优异，继续保持！"
             eval_color = "#10B981"
@@ -899,7 +1047,7 @@ class StudentApp:
             bg="#F0F9FF",
         ).pack(pady=10)
 
-        # 成绩预警
+        # ---------- 成绩预警 ----------
         warning_frame = tk.Frame(parent, bg="white")
         warning_frame.pack(fill="x", padx=10, pady=5)
         fail_subjects = [
@@ -924,10 +1072,11 @@ class StudentApp:
                 bg="white",
             ).pack(anchor="w")
 
-        # 详细分析
+        # ---------- 详细分析 ----------
         detail_frame = tk.Frame(parent, bg="white")
         detail_frame.pack(fill="both", expand=True, padx=10, pady=5)
 
+        # 筛选出已录入成绩的科目，计算最高/最低分科目
         scored = {k: v for k, v in scores.items() if v is not None}
         high_sub = max(scored, key=scored.get) if scored else "—"
         low_sub = min(scored, key=scored.get) if scored else "—"
@@ -946,7 +1095,7 @@ class StudentApp:
                 else:
                     class_avg_text = f"低于班级平均分 {abs(diff)} 分"
 
-        # 学习建议
+        # ---------- 学习建议 ----------
         suggestions = []
         if avg >= 90:
             suggestions.append("整体表现非常出色，建议保持当前学习节奏。")
@@ -965,6 +1114,7 @@ class StudentApp:
             best = max(scored, key=scored.get)
             suggestions.append(f"优势科目：{best}，可继续保持。")
 
+        # 组装报告文本
         report_lines = [
             f"学生：{self.student_name}（{self.student_id}）",
             f"班级：{self.class_name or '未分配'}",
@@ -992,7 +1142,7 @@ class StudentApp:
         text_widget.insert("1.0", report_text)
         text_widget.config(state="disabled")
 
-        # 导出按钮
+        # ---------- 导出按钮 ----------
         btn_frame = tk.Frame(parent, bg="white")
         btn_frame.pack(pady=10)
         ttk.Button(
@@ -1003,7 +1153,9 @@ class StudentApp:
         ).pack(side="left", padx=5)
 
     def _export_report(self, report_text: str) -> None:
-        """导出分析报告为TXT文件.
+        """导出分析报告为 TXT 文件.
+
+        弹出保存对话框，用户确认后将报告内容写入指定路径。
 
         Args:
             report_text: 报告文本内容。
@@ -1023,7 +1175,13 @@ class StudentApp:
 
     # ========== 通知公告页面 ==========
     def _build_notices_page(self, parent):
-        """构建通知公告页面（只读列表）."""
+        """构建通知公告页面（只读列表）.
+
+        以 Treeview 展示面向学生的通知公告，支持双击查看详情。
+
+        Args:
+            parent: 页面父容器 Frame。
+        """
         for widget in parent.winfo_children():
             widget.destroy()
 
@@ -1081,7 +1239,13 @@ class StudentApp:
             )
 
         def _on_double_click(event):
-            """列表双击回调."""
+            """通知列表双击事件处理.
+
+            根据选中行的标题查找对应通知，弹出详情窗口展示完整内容。
+
+            Args:
+                event: tkinter 双击事件对象。
+            """
             selection = self._student_notice_tree.selection()
             if not selection:
                 return
@@ -1121,7 +1285,13 @@ class StudentApp:
     # ------------------------------------------------------------------
 
     def _build_schedule_view_page(self, parent):
-        """构建课表查看页面（只读）."""
+        """构建课表查看页面（只读）.
+
+        提供刷新与查看历史功能，以 Treeview 展示课表信息。
+
+        Args:
+            parent: 页面父容器 Frame。
+        """
         # 标题和工具栏
         header_frame = tk.Frame(parent, bg="white")
         header_frame.pack(fill="x", padx=15, pady=(10, 5))
@@ -1190,7 +1360,7 @@ class StudentApp:
         self._schedule_view_tree.pack(side="left", fill="both", expand=True)
         ysb.pack(side="right", fill="y")
 
-        # 斑马纹样式
+        # 斑马纹样式：奇偶行使用不同背景色，提升可读性
         self._schedule_view_tree.tag_configure("oddrow", background="#F8FAFC")
         self._schedule_view_tree.tag_configure("evenrow", background="#FFFFFF")
 
@@ -1198,7 +1368,10 @@ class StudentApp:
         self._refresh_schedule_tree()
 
     def _refresh_schedule_tree(self):
-        """刷新课表Treeview."""
+        """刷新课表 Treeview.
+
+        清空现有数据后重新从数据管理器加载课表列表，并应用斑马纹样式。
+        """
         tree = getattr(self, "_schedule_view_tree", None)
         if tree is None:
             return
@@ -1223,7 +1396,10 @@ class StudentApp:
             )
 
     def _schedule_show_history(self):
-        """查看课表变更历史."""
+        """查看课表变更历史.
+
+        弹出 Toplevel 窗口，以 Treeview 展示课表的历史操作记录（增删改）。
+        """
         history_win = tk.Toplevel(self.win)
         history_win.title("课表变更历史")
         history_win.geometry("750x450")

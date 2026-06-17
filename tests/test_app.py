@@ -9,7 +9,10 @@ from unittest.mock import MagicMock, patch, PropertyMock
 
 
 class MockWindow:
-    """Mock ttkbootstrap Window."""
+    """Mock ttkbootstrap Window，模拟所有常用的窗口及控件方法。
+
+    用于替换真实的 Tkinter 组件，避免测试时弹出 GUI 或触发 TclError。
+    """
 
     def __init__(self, *args, **kwargs):
         pass
@@ -191,11 +194,15 @@ class MockStyle:
 
 
 class MockCTkImage:
+    """Mock customtkinter CTkImage，用于替换图片对象。"""
+
     def __init__(self, *args, **kwargs):
         pass
 
 
 class MockCTkFrame:
+    """Mock customtkinter CTkFrame，模拟框架容器。"""
+
     def __init__(self, *args, **kwargs):
         pass
 
@@ -219,6 +226,8 @@ class MockCTkFrame:
 
 
 class MockCTkLabel:
+    """Mock customtkinter CTkLabel，模拟标签控件。"""
+
     def __init__(self, *args, **kwargs):
         pass
 
@@ -236,6 +245,8 @@ class MockCTkLabel:
 
 
 class MockCTkEntry:
+    """Mock customtkinter CTkEntry，模拟输入框控件。"""
+
     def __init__(self, *args, **kwargs):
         pass
 
@@ -436,6 +447,8 @@ class MockCTkToplevel:
 
 
 class MockTreeview:
+    """Mock ttk Treeview，模拟表格控件的常用操作。"""
+
     def __init__(self, *args, **kwargs):
         self._columns = kwargs.get("columns", [])
         self._items = {}
@@ -702,10 +715,18 @@ tk_mock.Entry = MockWindow
 tk_mock.Text = MockWindow
 tk_mock.Canvas = MockWindow
 tk_mock.Toplevel = MockCTkToplevel
-tk_mock.StringVar = MagicMock(return_value=MagicMock(get=MagicMock(return_value=""), set=MagicMock()))
-tk_mock.IntVar = MagicMock(return_value=MagicMock(get=MagicMock(return_value=0), set=MagicMock()))
-tk_mock.DoubleVar = MagicMock(return_value=MagicMock(get=MagicMock(return_value=0.0), set=MagicMock()))
-tk_mock.BooleanVar = MagicMock(return_value=MagicMock(get=MagicMock(return_value=False), set=MagicMock()))
+tk_mock.StringVar = MagicMock(
+    return_value=MagicMock(get=MagicMock(return_value=""), set=MagicMock())
+)
+tk_mock.IntVar = MagicMock(
+    return_value=MagicMock(get=MagicMock(return_value=0), set=MagicMock())
+)
+tk_mock.DoubleVar = MagicMock(
+    return_value=MagicMock(get=MagicMock(return_value=0.0), set=MagicMock())
+)
+tk_mock.BooleanVar = MagicMock(
+    return_value=MagicMock(get=MagicMock(return_value=False), set=MagicMock())
+)
 tk_mock.messagebox = MagicMock(
     showerror=MagicMock(),
     showinfo=MagicMock(),
@@ -750,7 +771,8 @@ class TestAppImportAndInit(unittest.TestCase):
     @patch("app.Style", MockStyle)
     def test_app_imports(self):
         """测试 app.py 可以成功导入."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         self.assertTrue(hasattr(app, "App"))
 
     @patch.dict("sys.modules", _mock_modules)
@@ -763,7 +785,8 @@ class TestAppImportAndInit(unittest.TestCase):
     @patch("app.change_avatar")
     def test_app_init(self, mock_change, mock_load):
         """测试 App 类能初始化（mock GUI）."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = MagicMock()
         mock_dm.subjects = []
         mock_dm.students = {}
@@ -796,7 +819,8 @@ class TestAppImportAndInit(unittest.TestCase):
     @patch("app.change_avatar")
     def test_app_run_returns_dict(self, mock_change, mock_load):
         """测试 App.run 返回字典."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = MagicMock()
         mock_dm.subjects = []
         mock_dm.students = {}
@@ -827,7 +851,8 @@ class TestAppImportAndInit(unittest.TestCase):
     @patch("app.change_avatar")
     def test_app_logout_flag(self, mock_change, mock_load):
         """测试退出登录标志初始为 False."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = MagicMock()
         mock_dm.subjects = []
         mock_dm.students = {}
@@ -859,7 +884,8 @@ class TestAppConstants(unittest.TestCase):
     @patch("app.Style", MockStyle)
     def test_colors_defined(self):
         """测试颜色常量已定义."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         self.assertTrue(hasattr(app, "TEAL_COLOR"))
         self.assertTrue(hasattr(app, "TEAL_DARK"))
         self.assertTrue(hasattr(app, "TEAL_LIGHT"))
@@ -872,7 +898,8 @@ class TestAppConstants(unittest.TestCase):
     @patch("app.Style", MockStyle)
     def test_excel_flag(self):
         """测试 EX_OK 标志."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         self.assertIn(app.EX_OK, [True, False])
 
     @patch.dict("sys.modules", _mock_modules)
@@ -883,7 +910,8 @@ class TestAppConstants(unittest.TestCase):
     @patch("app.Style", MockStyle)
     def test_matplotlib_flag(self):
         """测试 MAT_OK 标志."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         self.assertIn(app.MAT_OK, [True, False])
 
     @patch.dict("sys.modules", _mock_modules)
@@ -894,7 +922,8 @@ class TestAppConstants(unittest.TestCase):
     @patch("app.Style", MockStyle)
     def test_base_dir(self):
         """测试 BASE_DIR 已定义."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         self.assertTrue(hasattr(app, "BASE_DIR"))
         self.assertTrue(isinstance(app.BASE_DIR, str))
 
@@ -926,15 +955,21 @@ def _create_mock_dm():
     mock_dm.get_student.return_value = None
     mock_dm.get_teacher.return_value = None
     mock_dm._create_empty_data.return_value = {
-        "subjects": [], "students": {}, "history": [],
+        "subjects": [],
+        "students": {},
+        "history": [],
         "admin": {"username": "admin", "password": "123456", "name": "管理员"},
-        "teachers": {}, "courses": {}, "classes": [],
+        "teachers": {},
+        "courses": {},
+        "classes": [],
     }
     mock_dm.save = MagicMock()
     mock_dm.load = MagicMock()
     mock_dm.stats = MagicMock(return_value=None)
     mock_dm.data = {
-        "subjects": [], "students": {}, "history": [],
+        "subjects": [],
+        "students": {},
+        "history": [],
         "admin": {"username": "admin", "password": "123456", "name": "管理员"},
     }
     return mock_dm
@@ -954,7 +989,8 @@ class TestAppStaticMethods(unittest.TestCase):
     @patch("app.Style", MockStyle)
     def test_get_level_tag_excellent(self):
         """测试 _get_level_tag: 95分 → 优秀."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         tag, level = app.App._get_level_tag(95)
         self.assertEqual(tag, "excellent")
         self.assertEqual(level, "优秀")
@@ -967,7 +1003,8 @@ class TestAppStaticMethods(unittest.TestCase):
     @patch("app.Style", MockStyle)
     def test_get_level_tag_good(self):
         """测试 _get_level_tag: 85分 → 良好."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         tag, level = app.App._get_level_tag(85)
         self.assertEqual(tag, "good")
         self.assertEqual(level, "良好")
@@ -980,7 +1017,8 @@ class TestAppStaticMethods(unittest.TestCase):
     @patch("app.Style", MockStyle)
     def test_get_level_tag_pass_75(self):
         """测试 _get_level_tag: 75分 → 良好（≥75为良好）."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         tag, level = app.App._get_level_tag(75)
         self.assertEqual(tag, "good")
         self.assertEqual(level, "良好")
@@ -993,7 +1031,8 @@ class TestAppStaticMethods(unittest.TestCase):
     @patch("app.Style", MockStyle)
     def test_get_level_tag_pass_65(self):
         """测试 _get_level_tag: 65分 → 及格（边界）."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         tag, level = app.App._get_level_tag(65)
         self.assertEqual(tag, "pass_")
         self.assertEqual(level, "及格")
@@ -1006,7 +1045,8 @@ class TestAppStaticMethods(unittest.TestCase):
     @patch("app.Style", MockStyle)
     def test_get_level_tag_fail_55(self):
         """测试 _get_level_tag: 55分 → 不及格."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         tag, level = app.App._get_level_tag(55)
         self.assertEqual(tag, "fail")
         self.assertEqual(level, "不及格")
@@ -1019,7 +1059,8 @@ class TestAppStaticMethods(unittest.TestCase):
     @patch("app.Style", MockStyle)
     def test_get_level_tag_fail_50(self):
         """测试 _get_level_tag: 50分 → 不及格."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         tag, level = app.App._get_level_tag(50)
         self.assertEqual(tag, "fail")
         self.assertEqual(level, "不及格")
@@ -1034,7 +1075,8 @@ class TestAppStaticMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_manage_sort_key_numeric(self, mock_change, mock_load):
         """测试 _manage_sort_key: 数字值."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         result = instance._manage_sort_key(["S001", "张三", "一班", "95"], 3)
@@ -1050,7 +1092,8 @@ class TestAppStaticMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_manage_sort_key_dash(self, mock_change, mock_load):
         """测试 _manage_sort_key: "-" 返回 -1."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         result = instance._manage_sort_key(["S001", "张三", "一班", "-"], 3)
@@ -1066,7 +1109,8 @@ class TestAppStaticMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_manage_sort_key_empty(self, mock_change, mock_load):
         """测试 _manage_sort_key: 空字符串返回 -1."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         result = instance._manage_sort_key(["S001", "张三", "一班", ""], 3)
@@ -1082,7 +1126,8 @@ class TestAppStaticMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_manage_sort_key_string(self, mock_change, mock_load):
         """测试 _manage_sort_key: 非数字字符串直接返回."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         result = instance._manage_sort_key(["S001", "张三", "abc", "xyz"], 3)
@@ -1098,7 +1143,8 @@ class TestAppStaticMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_calc_subject_widths_default(self, mock_change, mock_load):
         """测试 _calc_subject_widths: 默认最小宽度."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         widths = instance._calc_subject_widths(["数学", "语文"])
@@ -1114,7 +1160,8 @@ class TestAppStaticMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_calc_subject_widths_long_name(self, mock_change, mock_load):
         """测试 _calc_subject_widths: 长科目名."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         # "高等数学进阶课程" = 8 chars, 8*14 = 112
@@ -1131,7 +1178,8 @@ class TestAppStaticMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_calc_subject_widths_custom_min(self, mock_change, mock_load):
         """测试 _calc_subject_widths: 自定义最小宽度."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         widths = instance._calc_subject_widths(["数学"], min_width=100)
@@ -1154,7 +1202,8 @@ class TestAppPageBuilders(unittest.TestCase):
     @patch("app.change_avatar")
     def test_build_dashboard_page(self, mock_change, mock_load):
         """测试 _build_dashboard_page 构建仪表盘."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         mock_dm.subjects = ["数学", "语文"]
         mock_dm.students = {"S001": {"name": "张三", "class": "一班", "scores": {}}}
@@ -1177,7 +1226,8 @@ class TestAppPageBuilders(unittest.TestCase):
     @patch("app.change_avatar")
     def test_build_account_page(self, mock_change, mock_load):
         """测试 _build_account_page 构建账号管理页面."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         mock_dm.teachers = {"T001": {"name": "李老师", "course_ids": []}}
         mock_dm.students = {"S001": {"name": "张三", "class": "一班", "scores": {}}}
@@ -1196,7 +1246,8 @@ class TestAppPageBuilders(unittest.TestCase):
     @patch("app.change_avatar")
     def test_build_course_mgmt_page(self, mock_change, mock_load):
         """测试 _build_course_mgmt_page 构建课程管理页面."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         mock_dm.courses = {}
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
@@ -1214,7 +1265,8 @@ class TestAppPageBuilders(unittest.TestCase):
     @patch("app.change_avatar")
     def test_build_analysis_page(self, mock_change, mock_load):
         """测试 _build_analysis_page 构建分析页面."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         mock_dm.subjects = ["数学"]
         mock_dm.students = {}
@@ -1234,7 +1286,8 @@ class TestAppPageBuilders(unittest.TestCase):
     @patch("app.change_avatar")
     def test_build_notice_mgmt_page(self, mock_change, mock_load):
         """测试 _build_notice_mgmt_page 构建通知管理页面."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         parent = MockWindow()
@@ -1251,7 +1304,8 @@ class TestAppPageBuilders(unittest.TestCase):
     @patch("app.change_avatar")
     def test_build_schedule_mgmt_page(self, mock_change, mock_load):
         """测试 _build_schedule_mgmt_page 构建课表管理页面."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         parent = MockWindow()
@@ -1268,7 +1322,8 @@ class TestAppPageBuilders(unittest.TestCase):
     @patch("app.change_avatar")
     def test_build_excel_page(self, mock_change, mock_load):
         """测试 _build_excel_page 构建 Excel 导入导出页面."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         mock_dm.subjects = ["数学"]
         mock_dm.students = {}
@@ -1288,7 +1343,8 @@ class TestAppPageBuilders(unittest.TestCase):
     @patch("app.change_avatar")
     def test_build_manage_page(self, mock_change, mock_load):
         """测试 _build_manage_page 构建成绩管理页面."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         mock_dm.subjects = ["数学"]
         mock_dm.students = {}
@@ -1308,11 +1364,16 @@ class TestAppPageBuilders(unittest.TestCase):
     @patch("app.change_avatar")
     def test_build_admin_profile_page(self, mock_change, mock_load):
         """测试 _build_admin_profile_page 构建个人中心页面."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         mock_dm.get_admin.return_value = {
-            "username": "admin", "password": "123456", "name": "管理员",
-            "phone": "", "email": "", "avatar": "",
+            "username": "admin",
+            "password": "123456",
+            "name": "管理员",
+            "phone": "",
+            "email": "",
+            "avatar": "",
         }
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         parent = MockWindow()
@@ -1329,7 +1390,8 @@ class TestAppPageBuilders(unittest.TestCase):
     @patch("app.change_avatar")
     def test_build_settings_page(self, mock_change, mock_load):
         """测试 _build_settings_page 构建设置页面."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         parent = MockWindow()
@@ -1353,7 +1415,8 @@ class TestAppMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_check_excel_available_true(self, mock_change, mock_load):
         """测试 _check_excel_available: EX_OK=True 时返回 True."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         with patch.object(app, "EX_OK", True):
@@ -1370,7 +1433,8 @@ class TestAppMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_check_excel_available_false(self, mock_change, mock_load):
         """测试 _check_excel_available: EX_OK=False 时返回 False."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         with patch.object(app, "EX_OK", False):
@@ -1387,7 +1451,8 @@ class TestAppMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_show_status_info(self, mock_change, mock_load):
         """测试 _show_status: info 级别."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         instance._show_status("测试消息", "info")
@@ -1404,7 +1469,8 @@ class TestAppMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_show_status_ok(self, mock_change, mock_load):
         """测试 _show_status: ok 级别."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         instance._show_status("操作成功", "ok")
@@ -1420,7 +1486,8 @@ class TestAppMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_show_status_warn(self, mock_change, mock_load):
         """测试 _show_status: warn 级别."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         instance._show_status("警告", "warn")
@@ -1436,7 +1503,8 @@ class TestAppMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_update_status(self, mock_change, mock_load):
         """测试 _update_status 更新状态栏."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         mock_dm.students = {"S001": {"name": "张三"}, "S002": {"name": "李四"}}
         mock_dm.classes = ["一班", "二班"]
@@ -1454,15 +1522,18 @@ class TestAppMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_switch_page(self, mock_change, mock_load):
         """测试 _switch_page 切换页面."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         # 设置 content_area
         instance.content_area = MockWindow()
         # 调用 _switch_page 传入一个简单的 builder
         called = []
+
         def dummy_builder(parent):
             called.append(True)
+
         instance._switch_page(dummy_builder)
         self.assertTrue(len(called) > 0)
 
@@ -1476,7 +1547,8 @@ class TestAppMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_set_active_button_first(self, mock_change, mock_load):
         """测试 _set_active_button: 激活第一个按钮."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         # 创建 mock 按钮
@@ -1497,7 +1569,8 @@ class TestAppMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_set_active_button_second(self, mock_change, mock_load):
         """测试 _set_active_button: 激活第二个按钮."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         btn0 = MagicMock()
@@ -1517,7 +1590,8 @@ class TestAppMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_refresh_all_pages_no_trees(self, mock_change, mock_load):
         """测试 _refresh_all_pages: 无表格时不报错."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         # 不设置 mg_tree 和 ex_tree，应该静默跳过
@@ -1534,7 +1608,8 @@ class TestAppMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_refresh_all_pages_with_mg_tree(self, mock_change, mock_load):
         """测试 _refresh_all_pages: 有 mg_tree 时刷新."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         mock_dm.students = {}
         mock_dm.subjects = []
@@ -1560,7 +1635,8 @@ class TestAppMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_refresh_dashboard(self, mock_change, mock_load):
         """测试 _refresh_dashboard 刷新仪表盘."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         mock_dm.subjects = ["数学"]
         mock_dm.students = {"S001": {"name": "张三", "class": "一班", "scores": {}}}
@@ -1596,7 +1672,8 @@ class TestAppMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_analyze_subject_no_subject(self, mock_change, mock_load):
         """测试 _analyze_subject: 无科目时弹出警告."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         instance.an_subj = MagicMock()
@@ -1614,7 +1691,8 @@ class TestAppMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_analyze_subject_no_data(self, mock_change, mock_load):
         """测试 _analyze_subject: 无成绩数据时弹出提示."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         mock_dm.analyze_subject.return_value = None
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
@@ -1633,13 +1711,22 @@ class TestAppMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_analyze_subject_with_data(self, mock_change, mock_load):
         """测试 _analyze_subject: 有成绩数据时正常分析."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         mock_dm.analyze_subject.return_value = {
-            "count": 10, "max": 95, "min": 45, "avg": 75.5,
-            "pass_rate": 80.0, "excellent_rate": 20.0,
+            "count": 10,
+            "max": 95,
+            "min": 45,
+            "avg": 75.5,
+            "pass_rate": 80.0,
+            "excellent_rate": 20.0,
             "distribution": {
-                "0-59": 2, "60-69": 2, "70-79": 2, "80-89": 2, "90-100": 2,
+                "0-59": 2,
+                "60-69": 2,
+                "70-79": 2,
+                "80-89": 2,
+                "90-100": 2,
             },
         }
         mock_dm.students = {
@@ -1651,8 +1738,12 @@ class TestAppMethods(unittest.TestCase):
         instance.an_subj.get.return_value = "数学"
         # 设置分析页面标签
         instance.alab = {
-            "cnt": MagicMock(), "mx": MagicMock(), "mn": MagicMock(),
-            "av": MagicMock(), "ps": MagicMock(), "ex": MagicMock(),
+            "cnt": MagicMock(),
+            "mx": MagicMock(),
+            "mn": MagicMock(),
+            "av": MagicMock(),
+            "ps": MagicMock(),
+            "ex": MagicMock(),
         }
         instance.adist = MagicMock()
         instance.adist.get_children.return_value = []
@@ -1677,7 +1768,8 @@ class TestAppMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_create_treeview(self, mock_change, mock_load):
         """测试 _create_treeview 创建表格."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         parent = MockWindow()
@@ -1696,9 +1788,10 @@ class TestAppMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_settings_backup(self, mock_change, mock_load):
         """测试 _settings_backup 备份数据."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
         import tempfile
         import os
+
         mock_dm = _create_mock_dm()
         # 创建临时文件作为源文件
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
@@ -1715,6 +1808,7 @@ class TestAppMethods(unittest.TestCase):
             if os.path.exists(src_path):
                 os.unlink(src_path)
             import glob
+
             bak_dir = os.path.dirname(src_path)
             for bak in glob.glob(os.path.join(bak_dir, "*.bak")):
                 try:
@@ -1732,7 +1826,8 @@ class TestAppMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_settings_restore_no_file(self, mock_change, mock_load):
         """测试 _settings_restore: 未选择文件时返回."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         mock_dm.fp = "/tmp/test.json"
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
@@ -1750,7 +1845,8 @@ class TestAppMethods(unittest.TestCase):
     @patch("app.change_avatar")
     def test_settings_reset(self, mock_change, mock_load):
         """测试 _settings_reset 重置数据."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         instance._settings_reset()
@@ -1775,7 +1871,8 @@ class TestAppLifecycle(unittest.TestCase):
     @patch("app.change_avatar")
     def test_run_returns_dict(self, mock_change, mock_load):
         """测试 run() 返回字典."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         result = instance.run()
@@ -1793,7 +1890,8 @@ class TestAppLifecycle(unittest.TestCase):
     @patch("app.change_avatar")
     def test_on_close(self, mock_change, mock_load):
         """测试 _on_close 保存数据并销毁窗口."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         instance.win = MagicMock()
@@ -1811,7 +1909,8 @@ class TestAppLifecycle(unittest.TestCase):
     @patch("app.change_avatar")
     def test_logout_confirm(self, mock_change, mock_load):
         """测试 _logout: 确认退出登录."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         instance.win = MagicMock()
@@ -1831,7 +1930,8 @@ class TestAppLifecycle(unittest.TestCase):
     @patch("app.change_avatar")
     def test_logout_cancel(self, mock_change, mock_load):
         """测试 _logout: 取消退出登录."""
-        import app
+        import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         instance.win = MagicMock()

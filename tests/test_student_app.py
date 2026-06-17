@@ -1,6 +1,7 @@
 """Student App (student_app.py) 单元测试.
 
-使用 mock 绕过 Tkinter GUI 初始化，测试业务逻辑和模块导入。
+使用 mock 绕过 Tkinter GUI 初始化，测试学生端业务逻辑和模块导入，
+涵盖页面构建、评级方法、业务方法及生命周期等各个方面。
 """
 
 import sys
@@ -9,7 +10,10 @@ from unittest.mock import MagicMock, patch
 
 
 class MockWindow:
-    """Mock ttkbootstrap Window."""
+    """Mock ttkbootstrap Window，模拟所有常用的窗口及控件方法。
+
+    用于替换真实的 Tkinter 组件，避免测试时弹出 GUI 或触发 TclError。
+    """
 
     def __init__(self, *args, **kwargs):
         pass
@@ -163,6 +167,8 @@ class MockWindow:
 
 
 class MockStyle:
+    """Mock ttkbootstrap Style，用于替换主题样式对象。"""
+
     def __init__(self, *args, **kwargs):
         pass
 
@@ -177,6 +183,8 @@ class MockStyle:
 
 
 class MockTreeview:
+    """Mock ttk Treeview，模拟表格控件的常用操作。"""
+
     def __init__(self, *args, **kwargs):
         self._items = {}
         self._next_iid = 1
@@ -251,6 +259,8 @@ class MockTreeview:
 
 
 class MockScrollbar:
+    """Mock ttk Scrollbar，用于模拟滚动条。"""
+
     def __init__(self, *args, **kwargs):
         pass
 
@@ -270,6 +280,7 @@ class MockScrollbar:
         pass
 
 
+# 构造 tkinter 及子模块的 mock 对象，统一替换 sys.modules 中的真实模块
 tk_mock = MagicMock()
 tk_mock.Frame = MockWindow
 tk_mock.Label = MockWindow
@@ -323,7 +334,7 @@ _mock_modules = {
 
 
 class TestStudentAppImportAndInit(unittest.TestCase):
-    """测试 student_app.py 的导入和基本初始化."""
+    """测试 student_app.py 的导入和基本初始化。"""
 
     @patch.dict("sys.modules", _mock_modules)
     @patch("student_app.messagebox", tk_mock.messagebox)
@@ -331,8 +342,12 @@ class TestStudentAppImportAndInit(unittest.TestCase):
     @patch("student_app.Window", MockWindow)
     @patch("student_app.Style", MockStyle)
     def test_student_app_imports(self):
-        """测试 student_app.py 可以成功导入."""
-        import student_app
+        """测试 student_app.py 可以成功导入。
+
+        预期结果：student_app 模块暴露 StudentApp 类。
+        """
+        import student_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         self.assertTrue(hasattr(student_app, "StudentApp"))
 
     @patch.dict("sys.modules", _mock_modules)
@@ -343,8 +358,13 @@ class TestStudentAppImportAndInit(unittest.TestCase):
     @patch("student_app.load_avatar")
     @patch("student_app.change_avatar")
     def test_student_app_init(self, mock_change, mock_load):
-        """测试 StudentApp 类能初始化（mock GUI）."""
-        import student_app
+        """测试 StudentApp 类能初始化（mock GUI）。
+
+        使用完整 mock 的 DataManager 构造 StudentApp，
+        预期实例不为 None，且学生基本信息被正确赋值。
+        """
+        import student_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = MagicMock()
         mock_dm.subjects = []
         mock_dm.students = {}
@@ -376,8 +396,12 @@ class TestStudentAppImportAndInit(unittest.TestCase):
     @patch("student_app.load_avatar")
     @patch("student_app.change_avatar")
     def test_student_app_run(self, mock_change, mock_load):
-        """测试 StudentApp.run 返回字典."""
-        import student_app
+        """测试 StudentApp.run 返回字典。
+
+        预期结果：run() 返回包含 logout 键的字典。
+        """
+        import student_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = MagicMock()
         mock_dm.subjects = []
         mock_dm.students = {}
@@ -401,7 +425,7 @@ class TestStudentAppImportAndInit(unittest.TestCase):
 
 
 class TestStudentAppConstants(unittest.TestCase):
-    """测试 student_app.py 的模块级常量."""
+    """测试 student_app.py 的模块级常量。"""
 
     @patch.dict("sys.modules", _mock_modules)
     @patch("student_app.messagebox", tk_mock.messagebox)
@@ -409,8 +433,12 @@ class TestStudentAppConstants(unittest.TestCase):
     @patch("student_app.Window", MockWindow)
     @patch("student_app.Style", MockStyle)
     def test_colors_defined(self):
-        """测试颜色常量已定义."""
-        import student_app
+        """测试颜色常量已定义。
+
+        预期结果：模块包含 TEAL_COLOR 和 TEAL_DARK 属性。
+        """
+        import student_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         self.assertTrue(hasattr(student_app, "TEAL_COLOR"))
         self.assertTrue(hasattr(student_app, "TEAL_DARK"))
 
@@ -421,20 +449,27 @@ class TestStudentAppConstants(unittest.TestCase):
 def _create_student_app(mock_dm_config=None):
     """创建带完整 mock 环境的 StudentApp 实例.
 
+    自动设置 sys.modules 及所有相关 mock，简化测试编写。
+
     Args:
         mock_dm_config: 可选回调函数，接收 mock_dm 用于自定义配置。
 
     Returns:
         StudentApp 实例。
     """
-    with patch.dict("sys.modules", _mock_modules), \
-         patch("student_app.messagebox", tk_mock.messagebox), \
-         patch("student_app.filedialog", tk_mock.filedialog), \
-         patch("student_app.Window", MockWindow), \
-         patch("student_app.Style", MockStyle), \
-         patch("student_app.load_avatar"), \
-         patch("student_app.change_avatar"):
-        import student_app
+    with patch.dict("sys.modules", _mock_modules), patch(
+        "student_app.messagebox", tk_mock.messagebox
+    ), patch("student_app.filedialog", tk_mock.filedialog), patch(
+        "student_app.Window", MockWindow
+    ), patch(
+        "student_app.Style", MockStyle
+    ), patch(
+        "student_app.load_avatar"
+    ), patch(
+        "student_app.change_avatar"
+    ):
+        import student_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+
         mock_dm = MagicMock()
         mock_dm.subjects = []
         mock_dm.students = {}
@@ -467,10 +502,13 @@ def _create_student_app(mock_dm_config=None):
 # 新增测试类 1：TestStudentGetLevel —— 评级方法
 # ============================================================
 class TestStudentGetLevel(unittest.TestCase):
-    """测试 _get_level 评级方法."""
+    """测试 _get_level 评级方法。"""
 
     def test_get_level_all(self):
-        """测试 _get_level 各分数段及边界值."""
+        """测试 _get_level 各分数段及边界值。
+
+        覆盖 None、各等级及 60/70/80/90 边界值。
+        """
         app = _create_student_app()
         # 空值
         self.assertEqual(app._get_level(None), "未录入")
@@ -491,10 +529,17 @@ class TestStudentGetLevel(unittest.TestCase):
 # 新增测试类 2：TestStudentPageBuilders —— 页面构建方法
 # ============================================================
 class TestStudentPageBuilders(unittest.TestCase):
-    """测试各页面构建方法."""
+    """测试各页面构建方法。
+
+    每个页面在 mock 环境下应能正常执行，不抛出异常。
+    """
 
     def test_build_dashboard_page(self):
-        """测试 _build_dashboard_page 不抛异常."""
+        """测试 _build_dashboard_page 不抛异常。
+
+        提供完整的学生数据和班级统计数据，验证页面构建成功。
+        """
+
         def config_dm(dm):
             dm.get_student.return_value = {
                 "name": "张三",
@@ -517,7 +562,8 @@ class TestStudentPageBuilders(unittest.TestCase):
         self.assertIsNotNone(app._dashboard_parent)
 
     def test_build_scores_page(self):
-        """测试 _build_scores_page 不抛异常."""
+        """测试 _build_scores_page 不抛异常。"""
+
         def config_dm(dm):
             dm.stats.return_value = {
                 "total": 180,
@@ -530,7 +576,8 @@ class TestStudentPageBuilders(unittest.TestCase):
         app._build_scores_page(parent)
 
     def test_build_scores_page_empty(self):
-        """测试 _build_scores_page 无成绩数据时不抛异常."""
+        """测试 _build_scores_page 无成绩数据时不抛异常。"""
+
         def config_dm(dm):
             dm.stats.return_value = None
 
@@ -539,7 +586,8 @@ class TestStudentPageBuilders(unittest.TestCase):
         app._build_scores_page(parent)
 
     def test_build_ranking_page(self):
-        """测试 _build_ranking_page 不抛异常."""
+        """测试 _build_ranking_page 不抛异常。"""
+
         def config_dm(dm):
             dm.stats.return_value = {
                 "total": 180,
@@ -547,13 +595,17 @@ class TestStudentPageBuilders(unittest.TestCase):
                 "scores": {"数学": 95, "英语": 85},
             }
             dm.ranking.return_value = [
-                {"rank": 1, "id": "2024001", "name": "张三",
-                 "scores": {"数学": 95}},
+                {"rank": 1, "id": "2024001", "name": "张三", "scores": {"数学": 95}},
             ]
             dm.get_class_stats.return_value = {
                 "students": [
-                    {"sid": "2024001", "name": "张三", "rank": 1,
-                     "total": 180, "avg": 90},
+                    {
+                        "sid": "2024001",
+                        "name": "张三",
+                        "rank": 1,
+                        "total": 180,
+                        "avg": 90,
+                    },
                 ],
             }
 
@@ -562,7 +614,8 @@ class TestStudentPageBuilders(unittest.TestCase):
         app._build_ranking_page(parent)
 
     def test_build_ranking_page_empty(self):
-        """测试 _build_ranking_page 无成绩时不抛异常."""
+        """测试 _build_ranking_page 无成绩时不抛异常。"""
+
         def config_dm(dm):
             dm.stats.return_value = None
 
@@ -571,7 +624,8 @@ class TestStudentPageBuilders(unittest.TestCase):
         app._build_ranking_page(parent)
 
     def test_build_analysis_page(self):
-        """测试 _build_analysis_page 不抛异常."""
+        """测试 _build_analysis_page 不抛异常。"""
+
         def config_dm(dm):
             dm.stats.return_value = {
                 "total": 180,
@@ -585,7 +639,8 @@ class TestStudentPageBuilders(unittest.TestCase):
         app._build_analysis_page(parent)
 
     def test_build_analysis_page_empty(self):
-        """测试 _build_analysis_page 无成绩时不抛异常."""
+        """测试 _build_analysis_page 无成绩时不抛异常。"""
+
         def config_dm(dm):
             dm.stats.return_value = None
 
@@ -594,11 +649,17 @@ class TestStudentPageBuilders(unittest.TestCase):
         app._build_analysis_page(parent)
 
     def test_build_notices_page(self):
-        """测试 _build_notices_page 不抛异常."""
+        """测试 _build_notices_page 不抛异常。"""
+
         def config_dm(dm):
             dm.get_notices.return_value = [
-                {"title": "通知1", "publisher": "管理员",
-                 "date": "2024-01-01", "target": "all", "content": "测试内容"},
+                {
+                    "title": "通知1",
+                    "publisher": "管理员",
+                    "date": "2024-01-01",
+                    "target": "all",
+                    "content": "测试内容",
+                },
             ]
 
         app = _create_student_app(config_dm)
@@ -606,7 +667,8 @@ class TestStudentPageBuilders(unittest.TestCase):
         app._build_notices_page(parent)
 
     def test_build_notices_page_empty(self):
-        """测试 _build_notices_page 无通知时不抛异常."""
+        """测试 _build_notices_page 无通知时不抛异常。"""
+
         def config_dm(dm):
             dm.get_notices.return_value = []
 
@@ -615,11 +677,18 @@ class TestStudentPageBuilders(unittest.TestCase):
         app._build_notices_page(parent)
 
     def test_build_schedule_view_page(self):
-        """测试 _build_schedule_view_page 不抛异常."""
+        """测试 _build_schedule_view_page 不抛异常。"""
+
         def config_dm(dm):
             dm.get_schedules.return_value = [
-                {"weekday": "周一", "session": "上午", "period": "1-2",
-                 "course": "数学", "teacher": "李老师", "room": "101"},
+                {
+                    "weekday": "周一",
+                    "session": "上午",
+                    "period": "1-2",
+                    "course": "数学",
+                    "teacher": "李老师",
+                    "room": "101",
+                },
             ]
 
         app = _create_student_app(config_dm)
@@ -627,11 +696,14 @@ class TestStudentPageBuilders(unittest.TestCase):
         app._build_schedule_view_page(parent)
 
     def test_build_profile_page(self):
-        """测试 _build_profile_page 不抛异常."""
+        """测试 _build_profile_page 不抛异常。"""
+
         def config_dm(dm):
             dm.get_student.return_value = {
-                "name": "张三", "password": "123456",
-                "phone": "13800138000", "email": "test@test.com",
+                "name": "张三",
+                "password": "123456",
+                "phone": "13800138000",
+                "email": "test@test.com",
                 "avatar": "",
             }
 
@@ -644,17 +716,23 @@ class TestStudentPageBuilders(unittest.TestCase):
 # 新增测试类 3：TestStudentMethods —— 业务方法
 # ============================================================
 class TestStudentMethods(unittest.TestCase):
-    """测试业务方法."""
+    """测试业务方法。"""
 
     def test_refresh_dashboard(self):
-        """测试 _refresh_dashboard 方法."""
+        """测试 _refresh_dashboard 方法。
+
+        先构建仪表盘页面以设置 _dashboard_parent，再调用刷新方法，
+        预期不抛异常。
+        """
+
         def config_dm(dm):
             dm.get_student.return_value = {
                 "name": "张三",
                 "scores": {"数学": 95, "英语": 85},
             }
             dm.stats.return_value = {
-                "total": 180, "avg": 90,
+                "total": 180,
+                "avg": 90,
                 "scores": {"数学": 95, "英语": 85},
             }
             dm.get_class_stats.return_value = {
@@ -664,30 +742,37 @@ class TestStudentMethods(unittest.TestCase):
             }
 
         app = _create_student_app(config_dm)
-        # 先构建仪表盘页面以设置 _dashboard_parent
         parent = MockWindow()
         app._build_dashboard_page(parent)
-        # 再次刷新
         app._refresh_dashboard()
 
     def test_load_avatar(self):
-        """测试 _load_avatar 方法."""
+        """测试 _load_avatar 方法。
+
+        需要先构建个人信息页面以创建 avatar_label，再调用加载方法。
+        """
+
         def config_dm(dm):
             dm.get_student.return_value = {
-                "name": "张三", "avatar": "avatar.png",
+                "name": "张三",
+                "avatar": "avatar.png",
             }
 
         app = _create_student_app(config_dm)
-        # 需要 avatar_label 存在，先构建个人信息页面
         parent = MockWindow()
         app._build_profile_page(parent)
         app._load_avatar()
 
     def test_change_avatar(self):
-        """测试 _change_avatar 方法."""
+        """测试 _change_avatar 方法。
+
+        构建个人信息页面后调用，预期不抛异常。
+        """
+
         def config_dm(dm):
             dm.get_student.return_value = {
-                "name": "张三", "avatar": "",
+                "name": "张三",
+                "avatar": "",
             }
 
         app = _create_student_app(config_dm)
@@ -696,21 +781,28 @@ class TestStudentMethods(unittest.TestCase):
         app._change_avatar()
 
     def test_change_password(self):
-        """测试 _change_password 方法（只创建对话框）."""
+        """测试 _change_password 方法（只创建对话框）。
+
+        预期创建 Toplevel 对话框，不触发回调，不抛异常。
+        """
+
         def config_dm(dm):
             dm.get_student.return_value = {
-                "name": "张三", "password": "123456",
+                "name": "张三",
+                "password": "123456",
             }
 
         app = _create_student_app(config_dm)
-        app._change_password()  # 创建 Toplevel 对话框，不触发回调
+        app._change_password()
 
     def test_export_report(self):
-        """测试 _export_report 方法."""
+        """测试 _export_report 方法。
+
+        默认 filedialog 返回空字符串时不写入文件；
+        临时修改返回值为文件路径以覆盖写入分支。
+        """
         app = _create_student_app()
-        # filedialog 返回空字符串，不会写入文件
         app._export_report("测试报告内容")
-        # 模拟用户选择了文件路径 — 直接修改 mock 的返回值
         old_return = tk_mock.filedialog.asksaveasfilename.return_value
         tk_mock.filedialog.asksaveasfilename.return_value = "test_report.txt"
         try:
@@ -720,11 +812,21 @@ class TestStudentMethods(unittest.TestCase):
             tk_mock.filedialog.asksaveasfilename.return_value = old_return
 
     def test_refresh_schedule_tree(self):
-        """测试 _refresh_schedule_tree 方法."""
+        """测试 _refresh_schedule_tree 方法。
+
+        构建课表页面后调用刷新，预期 Treeview 被正确填充。
+        """
+
         def config_dm(dm):
             dm.get_schedules.return_value = [
-                {"weekday": "周一", "session": "上午", "period": "1-2",
-                 "course": "数学", "teacher": "李老师", "room": "101"},
+                {
+                    "weekday": "周一",
+                    "session": "上午",
+                    "period": "1-2",
+                    "course": "数学",
+                    "teacher": "李老师",
+                    "room": "101",
+                },
             ]
 
         app = _create_student_app(config_dm)
@@ -733,39 +835,57 @@ class TestStudentMethods(unittest.TestCase):
         app._refresh_schedule_tree()
 
     def test_refresh_schedule_tree_no_tree(self):
-        """测试 _refresh_schedule_tree 无 Treeview 时安全退出."""
+        """测试 _refresh_schedule_tree 无 Treeview 时安全退出。
+
+        当 _schedule_view_tree 不存在时，方法应直接返回，不抛异常。
+        """
         app = _create_student_app()
-        app._refresh_schedule_tree()  # _schedule_view_tree 不存在，应安全返回
+        app._refresh_schedule_tree()
 
     def test_schedule_show_history(self):
-        """测试 _schedule_show_history 方法."""
+        """测试 _schedule_show_history 方法。
+
+        预期创建历史记录对话框，不抛异常。
+        """
+
         def config_dm(dm):
             dm.get_schedule_history.return_value = [
-                {"time": "2024-01-01 10:00", "action": "修改",
-                 "old_summary": "旧课表", "new_summary": "新课表",
-                 "operator": "管理员"},
+                {
+                    "time": "2024-01-01 10:00",
+                    "action": "修改",
+                    "old_summary": "旧课表",
+                    "new_summary": "新课表",
+                    "operator": "管理员",
+                },
             ]
 
         app = _create_student_app(config_dm)
-        app._schedule_show_history()  # 创建 Toplevel 对话框
+        app._schedule_show_history()
 
     def test_switch_page(self):
-        """测试 _switch_page 方法."""
+        """测试 _switch_page 方法。
+
+        传入简单的页面构建函数，验证 content_area 切换逻辑正常。
+        """
         app = _create_student_app()
         parent = MockWindow()
         app._switch_page(lambda p: setattr(p, "_tag", "switched"))
-        # 验证 content_area 的页面已切换
         self.assertIsNotNone(app)
 
     def test_set_active_button(self):
-        """测试 _set_active_button 方法."""
+        """测试 _set_active_button 方法。
+
+        初始化后 nav_buttons 已填充，切换激活按钮应不抛异常。
+        """
         app = _create_student_app()
-        # 初始化后 nav_buttons 已填充，切换激活按钮
         app._set_active_button(0)
         app._set_active_button(1)
 
     def test_confirm_logout(self):
-        """测试 _confirm_logout 方法."""
+        """测试 _confirm_logout 方法。
+
+        预期设置 _logout 标志为 True。
+        """
         app = _create_student_app()
         app._confirm_logout()
         self.assertTrue(getattr(app, "_logout", False))
@@ -775,22 +895,28 @@ class TestStudentMethods(unittest.TestCase):
 # 新增测试类 4：TestStudentRunAndLogout —— 运行/关闭
 # ============================================================
 class TestStudentRunAndLogout(unittest.TestCase):
-    """测试 run() 和 _on_close() 方法."""
+    """测试 run() 和 _on_close() 方法。"""
 
     def test_run(self):
-        """测试 run() 返回字典."""
+        """测试 run() 返回字典。
+
+        预期结果：返回包含 logout 键的字典。
+        """
         app = _create_student_app()
         result = app.run()
         self.assertIsInstance(result, dict)
         self.assertIn("logout", result)
 
     def test_on_close(self):
-        """测试 _on_close() 不抛异常."""
+        """测试 _on_close() 不抛异常。"""
         app = _create_student_app()
         app._on_close()
 
     def test_run_after_logout(self):
-        """测试退出登录后 run() 的 logout 标志."""
+        """测试退出登录后 run() 的 logout 标志。
+
+        调用 _confirm_logout() 后，run() 应返回 logout=True。
+        """
         app = _create_student_app()
         app._confirm_logout()
         result = app.run()
