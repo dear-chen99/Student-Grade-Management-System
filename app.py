@@ -302,6 +302,7 @@ class App:
         # 页面映射（功能完全不变）
         self.page_builders = {
             "📊 仪表盘": self._build_dashboard_page,
+            "📝 录入": self._build_input_page,
             "📥 导入与导出": self._build_excel_page,
             "📁 管理": self._build_manage_page,
             "📊 分析": self._build_analysis_page,
@@ -320,6 +321,7 @@ class App:
         text, builder = list(self.page_builders.items())[idx]
 
         def cmd(b=builder, btn_idx=idx):
+            """命令执行入口."""
             self._switch_page(b)
             self._set_active_button(btn_idx)
             self._set_active_button(btn_idx)
@@ -340,6 +342,7 @@ class App:
         ):
 
             def cmd(b=builder, btn_idx=idx):
+                """命令执行入口."""
                 self._switch_page(b)
                 self._set_active_button(btn_idx)
 
@@ -478,6 +481,7 @@ class App:
 
         self.da_cards = {}  # 存储卡片数值标签，便于刷新
 
+        """创建信息卡片组件."""
         def create_card(container, icon, title, value, color):
             card = tk.Frame(container, bg="white", relief="solid", bd=1)
             card.pack(side="left", fill="both", expand=True, padx=5)
@@ -865,6 +869,7 @@ class App:
         name_var = tk.StringVar()
         tk.Entry(dialog, textvariable=name_var, font=("微软雅黑", 11)).pack()
 
+        """添加新记录."""
         def do_add():
             account_id = id_var.get().strip()
             name = name_var.get().strip()
@@ -973,6 +978,7 @@ class App:
             class_var.set(vals[2] if len(vals) > 2 else "")
             tk.Entry(dialog, textvariable=class_var, font=("微软雅黑", 11)).pack()
 
+        """保存当前编辑."""
         def do_save():
             name = name_var.get().strip()
             if not name:
@@ -1114,6 +1120,7 @@ class App:
             main_frame, textvariable=class_var, font=("微软雅黑", 11), width=25
         ).grid(row=3, column=1, pady=5)
 
+        """添加新记录."""
         def do_add():
             cid = id_var.get().strip()
             name = name_var.get().strip()
@@ -1214,6 +1221,7 @@ class App:
             main_frame, textvariable=class_var, font=("微软雅黑", 11), width=25
         ).grid(row=2, column=1, pady=5)
 
+        """保存当前编辑."""
         def do_save():
             name = name_var.get().strip()
             tid = teacher_var.get().strip()
@@ -1289,6 +1297,7 @@ class App:
         pwd_entry = tk.Entry(pwd_frame, textvariable=pwd_var, show="*", **entry_opts)
         pwd_entry.pack(side="left")
 
+        """切换密码显示/隐藏."""
         def toggle_pwd():
             if pwd_entry.cget("show") == "*":
                 pwd_entry.config(show="")
@@ -1335,6 +1344,7 @@ class App:
             row=4, column=1, sticky="w"
         )
 
+        """保存个人资料."""
         def save_profile():
             admin = self.dm.get_admin()
             self.dm.update_admin_profile(
@@ -1426,6 +1436,7 @@ class App:
         confirm_var = tk.StringVar()
         tk.Entry(dialog, textvariable=confirm_var, show="*").pack()
 
+        """执行密码修改操作."""
         def do_change():
             old = old_var.get().strip()
             new = new_var.get().strip()
@@ -1502,6 +1513,7 @@ class App:
             row: int,
             color: str = TEAL_COLOR,
         ):
+            """创建操作按钮卡片."""
             card = tk.Frame(
                 container,
                 bg="white",
@@ -1546,9 +1558,11 @@ class App:
 
             # 鼠标悬停效果（改变卡片边框颜色）
             def on_enter(e):
+                """鼠标进入事件回调."""
                 card.config(highlightbackground=TEAL_COLOR)
 
             def on_leave(e):
+                """鼠标离开事件回调."""
                 card.config(highlightbackground="#E2E8F0")
 
             card.bind("<Enter>", on_enter)
@@ -1822,6 +1836,7 @@ class App:
             self.win.after(100, self._analyze_subject)
 
     def _analyze_subject(self) -> None:
+        """分析科目成绩分布."""
         subject = self.an_subj.get()
         if not subject:
             messagebox.showwarning("提示", "请先添加科目！")
@@ -1861,6 +1876,7 @@ class App:
             score = stu["scores"].get(subject)
             if score is not None:
                 rows.append((sid, stu["name"], stu.get("class", ""), score))
+        """根据分数返回等级标签文本."""
         rows.sort(key=lambda x: x[3], reverse=True)
 
         for rank, (sid, name, cls, score) in enumerate(rows, 1):
@@ -1871,9 +1887,11 @@ class App:
                 values=(rank, sid, name, cls, score, level),
                 tags=(tag,),
             )
+            """管理科目增删改."""
 
     @staticmethod
     def _get_level_tag(score: float) -> tuple[str, str]:
+        """根据分数返回等级标签文本."""
         if score >= 90:
             return "excellent", "优秀"
         if score >= 75:
@@ -1883,6 +1901,7 @@ class App:
         return "fail", "不及格"
 
     def _manage_subjects(self) -> None:
+        """管理科目增删改."""
         dialog = tk.Toplevel(self.win)
         dialog.title("科目管理")
         dialog.geometry("350x350")
@@ -1898,6 +1917,7 @@ class App:
         listbox = tk.Listbox(dialog)
         listbox.pack(fill="both", expand=True, padx=10, pady=10)
         for s in self.dm.subjects:
+            """添加新记录."""
             listbox.insert("end", s)
 
         def _add() -> None:
@@ -1908,6 +1928,7 @@ class App:
                     listbox.insert("end", name)
                     self._refresh_subject_ui()
                 except Exception as e:
+                    """删除选中记录."""
                     messagebox.showerror("错误", str(e))
 
         def _delete() -> None:
@@ -1924,6 +1945,7 @@ class App:
 
         # 按钮栏：拉开间距 + 不同颜色样式
         btn_frame = tk.Frame(dialog)
+        """刷新科目相关界面."""
         btn_frame.pack(pady=15)
 
         ttk.Button(
@@ -1939,6 +1961,7 @@ class App:
         ).pack(side="left", padx=10)
 
     def _refresh_subject_ui(self) -> None:
+        """刷新科目相关界面."""
         subjects = self.dm.subjects
         if hasattr(self, "an_cb"):
             self.an_cb["values"] = subjects
@@ -2095,6 +2118,7 @@ class App:
             anchor="w", padx=20, pady=(0, 5)
         )
         content_text = tk.Text(dialog, font=("微软雅黑", 11), width=50, height=10)
+        """保存编辑数据."""
         content_text.pack(padx=20, pady=(0, 15), fill="both", expand=True)
 
         def _save():
@@ -2399,6 +2423,7 @@ class App:
             form, values=session_vals, font=("微软雅黑", 10), width=22
         )
         session_combo.grid(row=1, column=1, pady=6)
+        """确认操作."""
         entries["session_entry"] = session_combo
 
         def confirm():
@@ -2520,6 +2545,7 @@ class App:
         entries["period_entry"].insert(0, str(values[3]))
         entries["course_entry"].insert(0, str(values[4]))
         entries["teacher_entry"].insert(0, str(values[5]))
+        """确认操作."""
         entries["room_entry"].insert(0, str(values[6]))
 
         def confirm():
@@ -2660,6 +2686,7 @@ class App:
                 ),
                 tags=(tag,),
             )
+            """清空历史记录."""
 
         def _clear_history():
             if not messagebox.askyesno(
@@ -2713,6 +2740,7 @@ class App:
         return True
 
     def _refresh_all_pages(self) -> None:
+        """计算科目列宽度."""
         """刷新所有页面的数据和 UI 显示.
 
         依次调用各页面的刷新方法，包括成绩管理、查询、班级、
@@ -2723,11 +2751,17 @@ class App:
             self._refresh_manage_tree()
         if hasattr(self, "ex_tree"):
             if hasattr(self, "_excel_parent"):
+                """创建并配置 Treeview 表格控件."""
                 self._refresh_excel_tree(self._excel_parent)
+        if hasattr(self, "in_tree"):
+            self.in_tree.delete(*self.in_tree.get_children())
+            for _ in range(5):
+                self._input_add_row()
 
     def _calc_subject_widths(
         self, subjects: list[str], min_width: int = 72
     ) -> list[int]:
+        """计算科目列宽度."""
         return [max(min_width, len(s) * 14) for s in subjects]
 
     def _create_treeview(
@@ -2738,6 +2772,7 @@ class App:
         height: int = 14,
         pack_frame: bool = True,
     ) -> ttk.Treeview:
+        """创建并配置 Treeview 表格控件."""
         frame = tk.Frame(parent, bg="white")
         tree = ttk.Treeview(frame, columns=columns, show="headings", height=height)
         v_scroll = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
@@ -2757,6 +2792,178 @@ class App:
         tree.tag_configure("odd", background="#F8FAFC")
         tree.tag_configure("even", background="#FFFFFF")
         return tree
+
+    def _build_input_page(self, parent: tk.Frame) -> None:
+        """构建成绩录入页面，提供期号、日期、科目成绩输入和批量提交功能.
+
+        Args:
+            parent: 父容器 Frame，用于放置录入页面内容。
+        """
+        tk.Label(
+            parent,
+            text="📝 批量录入",
+            font=("微软雅黑", 14, "bold"),
+            bg="white",
+        ).pack(pady=4)
+
+        btn_frame = tk.Frame(parent, bg="white")
+        btn_frame.pack()
+        buttons = [
+            ("➕ 加行", self._input_add_row),
+            ("🗑️ 删行", self._input_delete_row),
+            ("💾 保存", self._input_save_rows),
+            ("🔄 清空", self._input_clear_rows),
+        ]
+        for text, cmd in buttons:
+            btn = ttk.Button(btn_frame, text=text, style="primary.TButton", command=cmd)
+            btn.pack(side="left", padx=4)
+
+        subjects = self.dm.subjects
+        columns = ["行号", "学号*", "姓名*", "班级"] + subjects + ["操作"]
+        widths = [45, 100, 90, 90] + self._calc_subject_widths(subjects) + [70]
+        self.in_tree = self._create_treeview(parent, columns, widths, 12)
+        self.in_tree.bind("<Double-1>", self._input_cell_double_click)
+
+        for _ in range(5):
+            self._input_add_row()
+
+    def _input_add_row(self) -> None:
+        """在录入表格末尾添加一行空白录入行."""
+        n = len(self.in_tree.get_children()) + 1
+        values = [n, "", "", ""] + [""] * len(self.dm.subjects) + ["删除"]
+        tag = "odd" if n % 2 == 1 else "even"
+        self.in_tree.insert("", "end", values=values, tags=(tag,))
+
+    def _input_delete_row(self) -> None:
+        """删除录入表格中选中的行，并重新编号."""
+        selected = self.in_tree.selection()
+        if not selected:
+            return
+        for item in selected:
+            self.in_tree.delete(item)
+        for i, item in enumerate(self.in_tree.get_children(), 1):
+            vals = list(self.in_tree.item(item, "values"))
+            vals[0] = i
+            tag = "odd" if i % 2 == 1 else "even"
+            self.in_tree.item(item, values=vals, tags=(tag,))
+
+    def _input_clear_rows(self) -> None:
+        """清空录入表格所有内容，并重新初始化 5 行空白行."""
+        if messagebox.askyesno("确认", "确定清空所有录入内容？"):
+            self.in_tree.delete(*self.in_tree.get_children())
+            for _ in range(5):
+                self._input_add_row()
+
+    def _input_cell_double_click(self, event: tk.Event) -> None:
+        """双击单元格时创建 Entry 控件进行行内编辑.
+
+        Args:
+            event: 鼠标双击事件对象，包含点击坐标信息。
+
+        双击非操作列时，会在单元格位置显示输入框，
+        支持回车确认、ESC 取消和失焦自动保存。
+        成绩列会自动校验数值范围（0-100）。
+        """
+        row_id = self.in_tree.identify_row(event.y)
+        col_id = self.in_tree.identify_column(event.x)
+        if not row_id:
+            return
+        col_index = int(col_id.replace("#", "")) - 1
+        columns = self.in_tree["columns"]
+        if col_index >= len(columns) or columns[col_index] == "操作":
+            return
+
+        x, y, w, h = self.in_tree.bbox(row_id, col_id)
+        entry = tk.Entry(self.in_tree, font=("微软雅黑", 10), relief="solid")
+        entry.insert(0, self.in_tree.item(row_id, "values")[col_index])
+        entry.place(x=x, y=y, width=w, height=h)
+        """提交行内编辑结果."""
+        entry.focus_set()
+
+        def _commit_edit() -> None:
+            vals = list(self.in_tree.item(row_id, "values"))
+            val = entry.get().strip()
+            columns = self.in_tree["columns"]
+            if 4 <= col_index < len(columns) - 1 and val:
+                try:
+                    score = float(val)
+                    if score < 0 or score > 100:
+                        messagebox.showwarning("输入错误", "成绩必须在 0-100 之间！")
+                        val = ""
+                except ValueError:
+                    messagebox.showwarning("输入错误", "成绩必须是数字！")
+                    val = ""
+            vals[col_index] = val
+            entry.destroy()
+            self.in_tree.item(row_id, values=vals)
+
+        entry.bind("<Return>", lambda _: _commit_edit())
+        entry.bind("<Escape>", lambda _: entry.destroy())
+        entry.bind("<FocusOut>", lambda _: _commit_edit())
+
+    def _input_save_rows(self) -> None:
+        """保存录入表格中的所有有效数据到系统.
+
+        逐行读取录入表格内容，校验学号、姓名、班级和成绩，
+        将有效数据写入 DataManager。已存在的学生会更新信息，
+        不存在的学生会新增。保存成功后刷新所有页面并提示结果。
+        """
+        subjects = self.dm.subjects
+        saved = 0
+        errors = []
+
+        for item in self.in_tree.get_children():
+            vals = self.in_tree.item(item, "values")
+            sid = str(vals[1]).strip()
+            name = str(vals[2]).strip()
+            cls = str(vals[3]).strip()
+            scores_raw = vals[4:4 + len(subjects)]
+
+            if (
+                not sid
+                and not name
+                and not cls
+                and all(str(x).strip() == "" for x in scores_raw)
+            ):
+                continue
+            if not sid:
+                errors.append(f"行 {vals[0]}: 学号不能为空")
+                continue
+
+            scores_dict = {}
+            for subj, sc in zip(subjects, scores_raw):
+                sc = str(sc).strip()
+                if sc:
+                    try:
+                        score = float(sc)
+                        if score < 0 or score > 100:
+                            error_msg = f"行 {vals[0]}: {subj} 成绩超出范围 (0-100)"
+                            errors.append(error_msg)
+                            continue
+                        scores_dict[subj] = score
+                    except ValueError:
+                        errors.append(f"行 {vals[0]}: {subj} 成绩无效")
+                        continue
+
+            try:
+                if self.dm.exists(sid):
+                    self.dm.upd_stu(sid, name, cls)
+                else:
+                    self.dm.add_stu(sid, name, cls)
+                self.dm.batch_set(sid, scores_dict)
+                saved += 1
+            except Exception as e:
+                errors.append(f"行 {vals[0]}: {e}")
+
+        if errors:
+            messagebox.showwarning("部分失败", "\n".join(errors[:10]))
+        if saved:
+            messagebox.showinfo("成功", f"保存 {saved} 名学生信息")
+            self._show_status(f"保存 {saved} 人", "ok")
+            self._refresh_all_pages()
+            logger.info("录入保存: %d 名学生", saved)
+        elif not errors:
+            messagebox.showinfo("提示", "无有效数据可保存")
 
     def _build_excel_page(self, parent: tk.Frame) -> None:
         """构建 Excel 导入导出页面."""
@@ -2999,6 +3206,7 @@ class App:
         )
         if classes:
             class_combo.current(0)
+        """执行数据导出."""
         class_combo.pack(side="left", padx=5)
 
         def do_export() -> None:
@@ -3342,7 +3550,7 @@ class App:
             )
 
             if filter_score != "全部":
-                score_vals = vals[3 : 3 + subject_count]
+                score_vals = vals[3:3 + subject_count]
                 pass_ok = True
                 has_60_69 = False
                 has_70_89 = False
@@ -3403,7 +3611,7 @@ class App:
         for idx, vals in enumerate(rows):
             base_tag = "odd" if idx % 2 == 0 else "even"
 
-            score_vals = vals[3 : 3 + subject_count]
+            score_vals = vals[3:3 + subject_count]
             has_fail = False
             has_warn = False
             has_good = True
@@ -3525,6 +3733,7 @@ class App:
             entry.focus_set()
 
             def _commit_score() -> None:
+                """提交成绩编辑."""
                 v = entry.get().strip()
                 entry.destroy()
                 try:
