@@ -68,6 +68,7 @@ class TeacherApp:
         data_manager: DataManager | None = None,
         user_info: dict | None = None,
     ) -> None:
+        """初始化实例，配置数据管理器和用户信息."""
         self.dm = data_manager if data_manager else DataManager()
         self.user_info = user_info or {}
         self.teacher_id = self.user_info.get("teacher_id", "")
@@ -120,6 +121,7 @@ class TeacherApp:
         return {"logout": getattr(self, "_logout_flag", False)}
 
     def _on_close(self) -> None:
+        """窗口关闭事件处理，保存数据并退出."""
         try:
             self.dm.save()
         except Exception as e:
@@ -139,6 +141,7 @@ class TeacherApp:
     # ========== UI 构建 ==========
     def _build_ui(self) -> None:
         # 顶部横幅
+        """构建主界面布局和侧边栏导航."""
         header = tk.Frame(self.win, bg=TEAL_COLOR, height=60)
         header.pack(fill="x")
         header.pack_propagate(False)
@@ -211,7 +214,6 @@ class TeacherApp:
         # 定义页面映射
         self.page_builders = {
             "仪表盘": self._build_dashboard_page,
-            "📝 录入": self._build_input_page,
             "🏫 班级": self._build_class_page,
             "🔍 查询": self._build_search_page,
             "📈 图表": self._build_chart_page,
@@ -232,6 +234,7 @@ class TeacherApp:
         text, builder = list(self.page_builders.items())[idx]
 
         def cmd(b=builder, btn_idx=idx):
+            """命令执行入口."""
             self._switch_page(b)
             self._set_active_button(btn_idx)
 
@@ -239,7 +242,11 @@ class TeacherApp:
         btn.pack(fill="x", padx=15, ipady=5)
         self.nav_buttons.append(btn)
 
-        # -------------- 2. 其他菜单（tk.Label）--------------
+        # -------------- 2. 仪表盘与其他菜单之间的空隙 --------------
+        spacer = tk.Frame(sidebar, height=20, bg="#0F766E")
+        spacer.pack(fill="x")
+
+        # -------------- 3. 其他菜单（tk.Label）--------------
         for idx, (text, builder) in enumerate(
             list(self.page_builders.items())[1:], start=1
         ):
@@ -253,6 +260,7 @@ class TeacherApp:
             )
 
             def _on_click(e, b=builder, target_idx=idx):
+                """侧边栏按钮点击回调."""
                 self._set_active_button(target_idx)
                 self._switch_page(b)
 
@@ -267,15 +275,19 @@ class TeacherApp:
         # 默认选中【仪表盘】
         self._switch_page(self._build_dashboard_page)
         self._set_active_button(0)
+    """切换当前显示的页面."""
 
     def _switch_page(self, builder_func):
+        """切换当前显示的页面."""
         for w in self.content_area.winfo_children():
             w.destroy()
         page_frame = tk.Frame(self.content_area, bg="white")
         page_frame.pack(fill="both", expand=True, padx=10, pady=10)
         builder_func(page_frame)
+    """设置侧边栏激活按钮样式."""
 
     def _set_active_button(self, active_idx):
+        """设置侧边栏激活按钮样式."""
         for idx, btn in enumerate(self.nav_buttons):
             if idx == active_idx:
                 if idx == 0:
@@ -297,8 +309,10 @@ class TeacherApp:
                     )
         self.win.update_idletasks()
 
+    """构建仪表盘页面."""
     # ========== 仪表盘页面 ==========
     def _build_dashboard_page(self, parent):
+        """构建仪表盘页面."""
         courses = self._get_teacher_courses()
         class_set = {
             cinfo.get("class_name", "")
@@ -332,6 +346,7 @@ class TeacherApp:
         card_row = tk.Frame(parent, bg="white")
         card_row.pack(fill="x", pady=10)
 
+        """创建信息卡片组件."""
         def create_card(container, icon, title, value, color):
             card = tk.Frame(container, bg="white", relief="solid", bd=1)
             card.pack(side="left", fill="both", expand=True, padx=5)
@@ -366,8 +381,10 @@ class TeacherApp:
             font=("微软雅黑", 11),
             bg="#F0F9FF",
         ).pack(pady=10)
+        """计算平均及格率."""
 
     def _get_avg_pass_rate(self):
+        """计算平均及格率."""
         courses = self._get_teacher_courses()
         rates = []
         for cinfo in courses.values():
@@ -378,9 +395,11 @@ class TeacherApp:
         if rates:
             return round(sum(rates) / len(rates), 1)
         return 0
+    """构建成绩录入页面."""
 
     # ========== 成绩录入页面 ==========
     def _build_grade_input_page(self, parent):
+        """构建成绩录入页面."""
         courses = self._get_teacher_courses()
         if not courses:
             tk.Label(
@@ -430,9 +449,11 @@ class TeacherApp:
 
         if len(courses) == 1:
             self.course_combo.current(0)
+            """加载选中课程的学生成绩."""
             self._load_selected_course()
 
     def _load_selected_course(self):
+        """加载选中课程的学生成绩."""
         selected = self.course_var.get()
         if not selected or selected not in self.course_id_map:
             return
@@ -492,9 +513,11 @@ class TeacherApp:
 
         self.tg_entries = {}
         self._load_students_for_course()
+        """为指定课程加载学生列表."""
         self._show_stats()
 
     def _load_students_for_course(self):
+        """为指定课程加载学生列表."""
         for item in self.tg_tree.get_children():
             self.tg_tree.delete(item)
         self.tg_entries.clear()
@@ -514,9 +537,11 @@ class TeacherApp:
                 "", "end", values=(sid, sinfo["name"], display_score), tags=(tag,)
             )
             self.tg_entries[item_id] = {"sid": sid, "score": score}
+            """表格单元格双击编辑回调."""
             idx += 1
 
     def _tg_cell_double_click(self, event):
+        """表格单元格双击编辑回调."""
         row_id = self.tg_tree.identify_row(event.y)
         col = self.tg_tree.identify_column(event.x)
         if not row_id or col != "#3":
@@ -533,6 +558,7 @@ class TeacherApp:
         entry.focus()
         entry.select_range(0, "end")
 
+        """保存编辑内容."""
         def save_edit(_event=None):
             val = var.get().strip()
             if val == "":
@@ -561,10 +587,12 @@ class TeacherApp:
                 self.dm.set_score(sid, subject, float(val))
             self._show_status(f"{subject} 成绩已自动保存", "ok")
 
+        """保存当前编辑的成绩数据."""
         entry.bind("<Return>", save_edit)
         entry.bind("<FocusOut>", save_edit)
 
     def _save_grades(self):
+        """保存当前编辑的成绩数据."""
         subject = self.current_course_name
         if not subject:
             return
@@ -594,6 +622,7 @@ class TeacherApp:
             messagebox.showinfo("提示", "没有需要保存的成绩")
 
     def _clear_course_scores(self):
+        """清空当前课程的所有成绩."""
         subject = self.current_course_name
         if not subject:
             return
@@ -608,10 +637,12 @@ class TeacherApp:
                 count += 1
         self.dm.save()
         messagebox.showinfo("成功", f"已清空 {count} 名学生的成绩")
+        """从外部文件导入成绩数据."""
         self._load_students_for_course()
         self._show_stats()
 
     def _import_scores(self):
+        """从外部文件导入成绩数据."""
         fp = filedialog.askopenfilename(
             title="选择成绩文件", filetypes=[("CSV", "*.csv"), ("文本", "*.txt")]
         )
@@ -649,10 +680,12 @@ class TeacherApp:
         if errors:
             messagebox.showwarning("导入警告", "\n".join(errors[:10]))
         messagebox.showinfo("成功", f"导入完成，成功 {count} 条")
+        """将成绩数据导出为文件."""
         self._load_students_for_course()
         self._show_stats()
 
     def _export_scores(self):
+        """将成绩数据导出为文件."""
         subject = self.current_course_name
         if not subject:
             return
@@ -675,6 +708,7 @@ class TeacherApp:
             messagebox.showerror("错误", f"导出失败: {e}")
 
     def _show_stats(self):
+        """显示成绩统计信息."""
         subject = self.current_course_name
         if not subject:
             return
@@ -687,10 +721,12 @@ class TeacherApp:
             f"最低分: {analysis['min']} | 及格率: {analysis['pass_rate']}% | "
             f"优秀率: {analysis['excellent_rate']}%"
         )
+        """构建班级统计页面."""
         self.stats_label.config(text=info)
 
     # ========== 班级统计页面 ==========
     def _build_class_stats_page(self, parent):
+        """构建班级统计页面."""
         courses = self._get_teacher_courses()
         if not courses:
             tk.Label(
@@ -720,6 +756,7 @@ class TeacherApp:
         result_frame = tk.Frame(parent, bg="white")
         result_frame.pack(fill="both", expand=True, padx=10, pady=5)
 
+        """加载统计数据."""
         def load_stats():
             for w in result_frame.winfo_children():
                 w.destroy()
@@ -824,6 +861,7 @@ class TeacherApp:
         pwd_entry = tk.Entry(pwd_frame, textvariable=pwd_var, show="*", **entry_opts)
         pwd_entry.pack(side="left")
 
+        """切换密码显示/隐藏."""
         def toggle_pwd():
             if pwd_entry.cget("show") == "*":
                 pwd_entry.config(show="")
@@ -870,6 +908,7 @@ class TeacherApp:
             row=4, column=1, sticky="w"
         )
 
+        """保存个人资料."""
         def save_profile():
             new_name = name_var.get().strip()
             new_phone = phone_var.get().strip()
@@ -956,6 +995,7 @@ class TeacherApp:
 
     # ========== 辅助方法 ==========
     def _get_teacher_courses(self) -> dict[str, dict]:
+        """获取当前教师所授课程列表."""
         teacher = self.dm.data["teachers"].get(self.teacher_id)
         if not teacher:
             return {}
@@ -964,6 +1004,7 @@ class TeacherApp:
         return {cid: courses[cid] for cid in course_ids if cid in courses}
 
     def _change_password(self):
+        """修改用户密码."""
         dialog = tk.Toplevel(self.win)
         dialog.title("修改密码")
         dialog.transient(self.win)
@@ -985,6 +1026,7 @@ class TeacherApp:
         confirm_var = tk.StringVar()
         tk.Entry(dialog, textvariable=confirm_var, show="*").pack()
 
+        """执行密码修改操作."""
         def do_change():
             old = old_var.get().strip()
             new = new_var.get().strip()
@@ -1081,6 +1123,7 @@ class TeacherApp:
         reverse_map = {v: k for k, v in status_map.items()}
         status_options = list(status_map.keys())
 
+        """执行操作."""
         def load_students():
             for item in tree.get_children():
                 tree.delete(item)
@@ -1115,6 +1158,7 @@ class TeacherApp:
                 )
             _update_stats(len(students), existing)
 
+        """更新统计数据显示."""
         def _update_stats(total, existing):
             present = sum(1 for s in existing.values() if s == "present")
             absent = sum(1 for s in existing.values() if s == "absent")
@@ -1128,6 +1172,7 @@ class TeacherApp:
                 )
             )
 
+        """保存考勤记录."""
         def save_attendance(silent: bool = False):
             cid = course_var.get()
             date_str = date_var.get().strip()
@@ -1145,6 +1190,7 @@ class TeacherApp:
                 messagebox.showinfo("成功", "考勤已保存")
                 load_students()
 
+        """批量设置考勤状态."""
         def set_all_status(status_key):
             for item in tree.get_children():
                 vals = list(tree.item(item, "values"))
@@ -1166,6 +1212,7 @@ class TeacherApp:
                 # 自动保存考勤
                 save_attendance(silent=True)
 
+        """树形控件点击回调."""
         def on_tree_click(event):
             region = tree.identify_region(event.x, event.y)
             if region != "cell":
@@ -1286,6 +1333,7 @@ class TeacherApp:
         tree.tag_configure("odd", background="#F8FAFC")
         tree.tag_configure("even", background="#FFFFFF")
 
+        """加载历史记录."""
         def load_history():
             for item in tree.get_children():
                 tree.delete(item)
@@ -1378,6 +1426,7 @@ class TeacherApp:
         report_frame = tk.Frame(parent, bg="white")
         report_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
+        """生成报表数据."""
         def _generate():
             for w in report_frame.winfo_children():
                 w.destroy()
@@ -1612,6 +1661,7 @@ class TeacherApp:
 
         selected_sid = [None]
 
+        """加载学生列表."""
         def _load_students():
             for item in student_tree.get_children():
                 student_tree.delete(item)
@@ -1624,6 +1674,7 @@ class TeacherApp:
                     continue
                 student_tree.insert("", "end", values=(sid, sinfo["name"]))
 
+        """学生选择变更回调."""
         def _on_student_select(event):
             selection = student_tree.selection()
             if not selection:
@@ -1633,6 +1684,7 @@ class TeacherApp:
             selected_sid[0] = sid
             _load_comments(sid)
 
+        """加载学生评语列表."""
         def _load_comments(sid):
             for w in history_frame.winfo_children():
                 w.destroy()
@@ -1704,6 +1756,7 @@ class TeacherApp:
                     idx=orig_idx,
                 ):
                     # 清除卡片中除 header 外的所有内容
+                    """开始行内编辑."""
                     for w in card.winfo_children()[1:]:
                         w.destroy()
 
@@ -1723,6 +1776,7 @@ class TeacherApp:
                     btn_row.pack(fill="x", pady=(5, 0))
 
                     def _commit_edit():
+                        """提交行内编辑结果."""
                         new_content = edit_text.get("1.0", "end-1c").strip()
                         if not new_content:
                             messagebox.showwarning("提示", "评语内容不能为空")
@@ -1775,6 +1829,7 @@ class TeacherApp:
                 "<Configure>",
                 lambda e: canvas.config(scrollregion=canvas.bbox("all")),
             )
+            """保存评语内容."""
 
         def _save_comment():
             sid = selected_sid[0]
@@ -1875,6 +1930,7 @@ class TeacherApp:
                     notice.get("target", "all"),
                 ),
             )
+            """列表双击回调."""
 
         def _on_double_click(event):
             selection = self._teacher_notice_tree.selection()
@@ -2082,43 +2138,6 @@ class TeacherApp:
                 ),
                 tags=(tag,),
             )
-
-    # ------------------------------------------------------------------
-    # 从管理员端迁移: _build_input_page
-    # ------------------------------------------------------------------
-    def _build_input_page(self, parent: tk.Frame) -> None:
-        """构建成绩录入页面，提供期号、日期、科目成绩输入和批量提交功能.
-
-        Args:
-            parent: 父容器 Frame，用于放置录入页面内容。
-        """
-        tk.Label(
-            parent,
-            text="📝 批量录入",
-            font=("微软雅黑", 14, "bold"),
-            bg="white",
-        ).pack(pady=4)
-
-        btn_frame = tk.Frame(parent, bg="white")
-        btn_frame.pack()
-        buttons = [
-            ("➕ 加行", self._input_add_row),
-            ("🗑️ 删行", self._input_delete_row),
-            ("💾 保存", self._input_save_rows),
-            ("🔄 清空", self._input_clear_rows),
-        ]
-        for text, cmd in buttons:
-            btn = ttk.Button(btn_frame, text=text, style="primary.TButton", command=cmd)
-            btn.pack(side="left", padx=4)
-
-        subjects = self.dm.subjects
-        columns = ["行号", "学号*", "姓名*", "班级"] + subjects + ["操作"]
-        widths = [45, 100, 90, 90] + self._calc_subject_widths(subjects) + [70]
-        self.in_tree = self._create_treeview(parent, columns, widths, 12)
-        self.in_tree.bind("<Double-1>", self._input_cell_double_click)
-
-        for _ in range(5):
-            self._input_add_row()
 
     # ========== Excel 导入导出页面 ==========
 
@@ -2555,6 +2574,7 @@ class TeacherApp:
             fg="#64748B",
             font=("微软雅黑", 9),
         ).pack(side="left", padx=(10, 2))
+        """根据分数返回等级."""
         first_subject = self.dm.subjects[0] if self.dm.subjects else ""
         self.ch_subj = tk.StringVar(value=first_subject)
         self.ch_cb = ttk.Combobox(
@@ -2565,6 +2585,7 @@ class TeacherApp:
             state="readonly",
         )
         self.ch_cb.pack(side="left")
+        """根据分数返回等级标签文本."""
         self.ch_subj.trace("w", lambda *args: self._chart_histogram())
 
         self.ct = tk.Frame(parent, bg="white")
@@ -2577,6 +2598,7 @@ class TeacherApp:
 
     @staticmethod
     def _get_level(score: float) -> str:
+        """根据分数返回等级."""
         if score >= 90:
             return "优秀"
         if score >= 75:
@@ -2587,6 +2609,7 @@ class TeacherApp:
 
     @staticmethod
     def _get_level_tag(score: float) -> tuple[str, str]:
+        """根据分数返回等级标签文本."""
         if score >= 90:
             return "excellent", "优秀"
         if score >= 75:
@@ -2630,6 +2653,7 @@ class TeacherApp:
         self.clock.set(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         self.win.after(1000, self._update_clock)
 
+    """计算科目列宽度."""
     def _refresh_all_pages(self) -> None:
         """刷新所有页面的数据和 UI 显示.
 
@@ -2640,6 +2664,7 @@ class TeacherApp:
         if hasattr(self, "mg_tree"):
             self._refresh_manage_tree()
         if hasattr(self, "ex_tree"):
+            """创建并配置 Treeview 表格控件."""
             if hasattr(self, "_excel_parent"):
                 self._refresh_excel_tree(self._excel_parent)
         if hasattr(self, "se_list"):
@@ -2652,6 +2677,7 @@ class TeacherApp:
     def _calc_subject_widths(
         self, subjects: list[str], min_width: int = 72
     ) -> list[int]:
+        """计算科目列宽度."""
         return [max(min_width, len(s) * 14) for s in subjects]
 
     def _create_treeview(
@@ -2662,6 +2688,7 @@ class TeacherApp:
         height: int = 14,
         pack_frame: bool = True,
     ) -> ttk.Treeview:
+        """创建并配置 Treeview 表格控件."""
         frame = tk.Frame(parent, bg="white")
         tree = ttk.Treeview(frame, columns=columns, show="headings", height=height)
         v_scroll = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
@@ -2682,145 +2709,6 @@ class TeacherApp:
         tree.tag_configure("odd", background="#F8FAFC")
         tree.tag_configure("even", background="#FFFFFF")
         return tree
-
-    # ========== 录入页面方法 ==========
-
-    def _input_add_row(self) -> None:
-        """在录入表格末尾添加一行空白录入行."""
-        n = len(self.in_tree.get_children()) + 1
-        values = [n, "", "", ""] + [""] * len(self.dm.subjects) + ["删除"]
-        tag = "odd" if n % 2 == 1 else "even"
-        self.in_tree.insert("", "end", values=values, tags=(tag,))
-
-    def _input_delete_row(self) -> None:
-        """删除录入表格中选中的行，并重新编号."""
-        selected = self.in_tree.selection()
-        if not selected:
-            return
-        for item in selected:
-            self.in_tree.delete(item)
-        for i, item in enumerate(self.in_tree.get_children(), 1):
-            vals = list(self.in_tree.item(item, "values"))
-            vals[0] = i
-            tag = "odd" if i % 2 == 1 else "even"
-            self.in_tree.item(item, values=vals, tags=(tag,))
-
-    def _input_clear_rows(self) -> None:
-        """清空录入表格所有内容，并重新初始化 5 行空白行."""
-        if messagebox.askyesno("确认", "确定清空所有录入内容？"):
-            self.in_tree.delete(*self.in_tree.get_children())
-            for _ in range(5):
-                self._input_add_row()
-
-    def _input_cell_double_click(self, event: tk.Event) -> None:
-        """双击单元格时创建 Entry 控件进行行内编辑.
-
-        Args:
-            event: 鼠标双击事件对象，包含点击坐标信息。
-
-        双击非操作列时，会在单元格位置显示输入框，
-        支持回车确认、ESC 取消和失焦自动保存。
-        成绩列会自动校验数值范围（0-100）。
-        """
-        row_id = self.in_tree.identify_row(event.y)
-        col_id = self.in_tree.identify_column(event.x)
-        if not row_id:
-            return
-        col_index = int(col_id.replace("#", "")) - 1
-        columns = self.in_tree["columns"]
-        if col_index >= len(columns) or columns[col_index] == "操作":
-            return
-
-        x, y, w, h = self.in_tree.bbox(row_id, col_id)
-        entry = tk.Entry(self.in_tree, font=("微软雅黑", 10), relief="solid")
-        entry.insert(0, self.in_tree.item(row_id, "values")[col_index])
-        entry.place(x=x, y=y, width=w, height=h)
-        entry.focus_set()
-
-        def _commit_edit() -> None:
-            vals = list(self.in_tree.item(row_id, "values"))
-            val = entry.get().strip()
-            columns = self.in_tree["columns"]
-            if 4 <= col_index < len(columns) - 1 and val:
-                try:
-                    score = float(val)
-                    if score < 0 or score > 100:
-                        messagebox.showwarning("输入错误", "成绩必须在 0-100 之间！")
-                        val = ""
-                except ValueError:
-                    messagebox.showwarning("输入错误", "成绩必须是数字！")
-                    val = ""
-            vals[col_index] = val
-            entry.destroy()
-            self.in_tree.item(row_id, values=vals)
-
-        entry.bind("<Return>", lambda _: _commit_edit())
-        entry.bind("<Escape>", lambda _: entry.destroy())
-        entry.bind("<FocusOut>", lambda _: _commit_edit())
-
-    def _input_save_rows(self) -> None:
-        """保存录入表格中的所有有效数据到系统.
-
-        逐行读取录入表格内容，校验学号、姓名、班级和成绩，
-        将有效数据写入 DataManager。已存在的学生会更新信息，
-        不存在的学生会新增。保存成功后刷新所有页面并提示结果。
-        """
-        subjects = self.dm.subjects
-        saved = 0
-        errors = []
-
-        for item in self.in_tree.get_children():
-            vals = self.in_tree.item(item, "values")
-            sid = str(vals[1]).strip()
-            name = str(vals[2]).strip()
-            cls = str(vals[3]).strip()
-            scores_raw = vals[4 : 4 + len(subjects)]
-
-            if (
-                not sid
-                and not name
-                and not cls
-                and all(str(x).strip() == "" for x in scores_raw)
-            ):
-                continue
-            if not sid:
-                errors.append(f"行 {vals[0]}: 学号不能为空")
-                continue
-
-            scores_dict = {}
-            for subj, sc in zip(subjects, scores_raw):
-                sc = str(sc).strip()
-                if sc:
-                    try:
-                        score = float(sc)
-                        if score < 0 or score > 100:
-                            error_msg = f"行 {vals[0]}: {subj} 成绩超出范围 (0-100)"
-                            errors.append(error_msg)
-                            continue
-                        scores_dict[subj] = score
-                    except ValueError:
-                        errors.append(f"行 {vals[0]}: {subj} 成绩无效")
-                        continue
-
-            try:
-                if self.dm.exists(sid):
-                    self.dm.upd_stu(sid, name, cls)
-                else:
-                    self.dm.add_stu(sid, name, cls)
-                self.dm.batch_set(sid, scores_dict)
-                saved += 1
-            except Exception as e:
-                errors.append(f"行 {vals[0]}: {e}")
-
-        if errors:
-            messagebox.showwarning("部分失败", "\n".join(errors[:10]))
-        if saved:
-            messagebox.showinfo("成功", f"保存 {saved} 名学生信息")
-            self._show_status(f"保存 {saved} 人", "ok")
-            self._refresh_all_pages()
-            logger.info("录入保存: %d 名学生", saved)
-        elif not errors:
-            messagebox.showinfo("提示", "无有效数据可保存")
 
     # ========== Excel 页面方法 ==========
 
@@ -3045,6 +2933,7 @@ class TeacherApp:
         )
         if classes:
             class_combo.current(0)
+        """执行数据导出."""
         class_combo.pack(side="left", padx=5)
 
         def do_export() -> None:
@@ -3293,7 +3182,7 @@ class TeacherApp:
 
             # 成绩范围过滤
             if filter_score != "全部":
-                score_vals = vals[3 : 3 + subject_count]
+                score_vals = vals[3:3 + subject_count]
                 pass_ok = True  # 全部 ≥ 60
                 has_60_69 = False
                 has_70_89 = False
@@ -3361,7 +3250,7 @@ class TeacherApp:
             base_tag = "odd" if idx % 2 == 0 else "even"
 
             # ====== 计算颜色标签 ======
-            score_vals = vals[3 : 3 + subject_count]
+            score_vals = vals[3:3 + subject_count]
             has_fail = False
             has_warn = False
             has_good = True
@@ -3485,6 +3374,7 @@ class TeacherApp:
             entry.insert(0, vals[col_index])
             entry.place(x=x, y=y, width=w, height=h)
             entry.focus_set()
+            """提交成绩编辑."""
 
             def _commit_score() -> None:
                 v = entry.get().strip()
@@ -3591,6 +3481,7 @@ class TeacherApp:
                 # 重新设置列宽和标题
                 for col, width in zip(columns, widths):
                     self.mg_tree.heading(col, text=col)
+                    """执行搜索查询."""
                     self.mg_tree.column(col, width=width, anchor="center")
 
                 # 重新绑定列头点击排序
@@ -3611,10 +3502,12 @@ class TeacherApp:
 
             # 6. 记录日志
             logger.info("所有数据已重置")
+    """显示搜索结果详情."""
 
     # ========== 查询页面方法 ==========
 
     def _search_execute(self) -> None:
+        """执行搜索查询."""
         keyword = self.se_var.get().strip()
         results = self.dm.search(keyword) if keyword else list(self.dm.students.keys())
         results.sort()
@@ -3635,10 +3528,12 @@ class TeacherApp:
         self._search_execute()
 
     def _search_show_detail(self, event: tk.Event) -> None:
+        """显示搜索结果详情."""
         selected = self.se_list.curselection()
         if not selected:
             return
         sid = self.se_list.get(selected[0]).split("|")[0].strip()
+        """显示搜索历史记录."""
         stu = self.dm.get_stu(sid)
         if not stu:
             return
@@ -3663,6 +3558,7 @@ class TeacherApp:
                 )
 
     def _search_show_history(self, student_id: str) -> None:
+        """显示搜索历史记录."""
         if not student_id or student_id == "—":
             messagebox.showinfo("提示", "请先在左侧列表选择一个学生")
             return
@@ -3706,6 +3602,7 @@ class TeacherApp:
             tree.heading(col, text=col)
             tree.column(col, width=width, anchor="center")
         tree.pack(fill="both", expand=True, padx=10, pady=10)
+        """删除选中的搜索记录."""
         tree.tag_configure("odd", background="#F8FAFC")
         tree.tag_configure("even", background="#FFFFFF")
 
@@ -3716,6 +3613,7 @@ class TeacherApp:
             old_str = str(old_val) if old_val is not None else "—"
             new_str = str(new_val) if new_val is not None else "—"
             tree.insert(
+                """刷新科目相关界面."""
                 "",
                 "end",
                 values=(
@@ -3730,6 +3628,7 @@ class TeacherApp:
         ttk.Button(dialog, text="关闭", command=dialog.destroy).pack(pady=8)
 
     def _search_delete_selected(self) -> None:
+        """删除选中的搜索记录."""
         selected = self.se_list.curselection()
         if not selected:
             return
@@ -3740,11 +3639,14 @@ class TeacherApp:
             self._show_status(f"已删除 {sid}", "warn")
 
     def _refresh_subject_ui(self) -> None:
+        """刷新科目相关界面."""
         subjects = self.dm.subjects
+        """清空图表区域."""
         if hasattr(self, "an_cb"):
             self.an_cb["values"] = subjects
         if hasattr(self, "ch_cb"):
             self.ch_cb["values"] = subjects
+        """显示指定类型的图表."""
         if hasattr(self, "mg_tree"):
             self._refresh_manage_tree()
             widths = self._calc_subject_widths(subjects)
@@ -3752,6 +3654,7 @@ class TeacherApp:
             for i, w in enumerate(widths, start=3):
                 if i < len(cols):
                     self.mg_tree.column(cols[i], width=w, minwidth=50)
+            """绘制总分排名图."""
             # 更新列头排序绑定
             for col in cols:
                 self.mg_tree.heading(
@@ -3765,10 +3668,12 @@ class TeacherApp:
     # ========== 图表页面方法 ==========
 
     def _clear_chart_area(self) -> None:
+        """清空图表区域."""
         for w in self.ct.winfo_children():
             w.destroy()
 
-    def _show_chart(self, figure: Figure) -> None:
+    def _show_chart(self, figure: "Figure") -> None:
+        """显示指定类型的图表."""
         self._clear_chart_area()
         canvas = FigureCanvasTkAgg(figure, self.ct)
         canvas.draw()
@@ -3776,10 +3681,13 @@ class TeacherApp:
         plt.close(figure)
 
     def _chart_total_ranking(self) -> None:
+        """绘制总分排名图."""
         ranking = self.dm.ranking()
         if not ranking:
+            """绘制平均分对比图."""
             messagebox.showinfo("提示", "暂无学生数据")
             return
+        """获取对应颜色值."""
         fig = Figure(figsize=(max(7, len(ranking) * 0.6), 4))
         ax = fig.add_subplot(111)
 
@@ -3801,7 +3709,9 @@ class TeacherApp:
         fig.tight_layout()
         self._show_chart(fig)
 
+    """绘制成绩分布直方图."""
     def _chart_avg_comparison(self) -> None:
+        """绘制平均分对比图."""
         ranking = self.dm.ranking(by="avg")
         if not ranking:
             messagebox.showinfo("提示", "暂无学生数据")
@@ -3825,7 +3735,9 @@ class TeacherApp:
         fig.tight_layout()
         self._show_chart(fig)
 
+    """绘制成绩雷达图."""
     def _chart_histogram(self) -> None:
+        """绘制成绩分布直方图."""
         subject = self.ch_subj.get()
         if not subject:
             messagebox.showwarning("提示", "请先添加科目！")
@@ -3844,12 +3756,14 @@ class TeacherApp:
         ax.axvline(
             analysis["avg"], color="red", ls="--", label=f"均分 {analysis['avg']}"
         )
+        """绘制成绩箱线图."""
         ax.axvline(60, color="orange", ls=":", label="及格线")
         ax.set_title(f"{subject} 成绩分布")
         ax.legend()
         self._show_chart(fig)
 
     def _chart_radar(self) -> None:
+        """绘制成绩雷达图."""
         if len(self.dm.subjects) < 3:
             messagebox.showinfo("提示", "至少需要 3 个科目才能生成雷达图")
             return
@@ -3869,12 +3783,14 @@ class TeacherApp:
         self._show_chart(fig)
 
     def _chart_boxplot(self) -> None:
+        """绘制成绩箱线图."""
         if not self.dm.subjects:
             messagebox.showinfo("提示", "暂无科目数据")
             return
         data = []
         labels = []
         for s in self.dm.subjects:
+            """添加班级."""
             analysis = self.dm.analyze_subject(s)
             if analysis and analysis["scores"]:
                 data.append(analysis["scores"])
@@ -3900,6 +3816,7 @@ class TeacherApp:
     # ========== 班级管理页面方法 ==========
 
     def _class_add(self) -> None:
+        """添加班级."""
         name = simpledialog.askstring("添加班级", "请输入班级名称：")
         if not name:
             return
@@ -3946,6 +3863,7 @@ class TeacherApp:
                 tag = "odd" if i % 2 == 0 else "even"
                 # 根据定义的6个列填充空值：
                 # ["班级名称", "学生人数", "平均分", "最高分", "最低分", "操作"]
+                """班级列表双击回调."""
                 empty_vals = ["", "", "", "", "", ""]
                 self.cl_tree.insert("", "end", values=empty_vals, tags=(tag,))
             return  # 填充完直接返回，不再显示下方的文字
@@ -3955,6 +3873,7 @@ class TeacherApp:
         for idx, cls_name in enumerate(classes):
             stats = self.dm.get_class_stats(cls_name)
             if stats:
+                """显示班级详情."""
                 base_tag = "odd" if idx % 2 == 0 else "even"
                 self.cl_tree.insert(
                     "",
@@ -3971,6 +3890,7 @@ class TeacherApp:
                 )
 
     def _class_double_click(self, event: tk.Event) -> None:
+        """班级列表双击回调."""
         row_id = self.cl_tree.identify_row(event.y)
         col_id = self.cl_tree.identify_column(event.x)
         if not row_id:
@@ -3980,6 +3900,7 @@ class TeacherApp:
             self._class_show_detail(vals[0])
 
     def _class_show_detail(self, class_name: str) -> None:
+        """显示班级详情."""
         stats = self.dm.get_class_stats(class_name)
         if not stats:
             return

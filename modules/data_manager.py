@@ -185,7 +185,21 @@ class DataManager:
             DataLoadError: 数据文件加载失败时抛出。
         """
         if file_path is None:
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            import sys
+            # PyInstaller 打包后，数据文件放在 exe 同级目录（持久化保存）
+            if hasattr(sys, "_MEIPASS"):
+                base_dir = os.path.dirname(sys.executable)
+                # 首次运行：从临时解压目录拷贝默认数据到 exe 目录
+                data_dir = os.path.join(base_dir, "data")
+                if not os.path.exists(data_dir):
+                    src_data = os.path.join(sys._MEIPASS, "data")
+                    if os.path.exists(src_data):
+                        try:
+                            shutil.copytree(src_data, data_dir)
+                        except OSError:
+                            pass
+            else:
+                base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             self.fp: str = os.path.join(base_dir, "data", "grades.json")
         else:
             self.fp = file_path

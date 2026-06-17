@@ -189,6 +189,7 @@ class StudentApp:
         text, builder = list(self.page_builders.items())[idx]
 
         def cmd(b=builder, btn_idx=idx):
+            """命令执行入口."""
             self._switch_page(b)
             self._set_active_button(btn_idx)
 
@@ -196,7 +197,11 @@ class StudentApp:
         btn.pack(fill="x", padx=15, ipady=5)
         self.nav_buttons.append(btn)
 
-        # -------------- 2. 其他菜单（tk.Label）--------------
+        # -------------- 2. 仪表盘与其他菜单之间的空隙 --------------
+        spacer = tk.Frame(sidebar, height=20, bg="#0F766E")
+        spacer.pack(fill="x")
+
+        # -------------- 3. 其他菜单（tk.Label）--------------
         for idx, (text, builder) in enumerate(
             list(self.page_builders.items())[1:], start=1
         ):
@@ -339,6 +344,7 @@ class StudentApp:
         card_row.pack(fill="x", pady=10)
 
         def create_card(container, icon, title, value, color):
+            """创建信息卡片组件."""
             card = tk.Frame(container, bg="white", relief="solid", bd=1)
             card.pack(side="left", fill="both", expand=True, padx=5)
             tk.Label(
@@ -441,6 +447,7 @@ class StudentApp:
         pwd_entry.pack(side="left")
 
         def toggle_pwd():
+            """切换密码显示/隐藏."""
             if pwd_entry.cget("show") == "*":
                 pwd_entry.config(show="")
                 toggle_btn.config(text="🙈")
@@ -487,6 +494,7 @@ class StudentApp:
         )
 
         def save_profile():
+            """保存个人资料."""
             new_name = name_var.get().strip()
             new_phone = phone_var.get().strip()
             new_email = email_var.get().strip()
@@ -597,6 +605,7 @@ class StudentApp:
         new_entry.pack()
 
         def do_change():
+            """执行密码修改操作."""
             old = old_entry.get().strip()
             new_pwd = new_entry.get().strip()
             if not old or not new_pwd:
@@ -791,6 +800,7 @@ class StudentApp:
         total_tree.tag_configure("me", background="#DBEAFE")
 
         def refresh_subject_rank(*_):
+            """刷新科目排名显示."""
             sub = subject_var.get()
             if not sub:
                 return
@@ -1071,6 +1081,7 @@ class StudentApp:
             )
 
         def _on_double_click(event):
+            """列表双击回调."""
             selection = self._student_notice_tree.selection()
             if not selection:
                 return
