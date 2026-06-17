@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学生成绩管理系统 - 测试报告</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            background: #f0f2f5; color: #1a1a2e; line-height: 1.6;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff; padding: 40px; border-radius: 16px;
+            margin-bottom: 24px; box-shadow: 0 8px 32px rgba(102,126,234,0.3);
+        }
+        .header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+        .header .subtitle { font-size: 14px; opacity: 0.85; }
+        .header .meta { display: flex; gap: 24px; margin-top: 16px; flex-wrap: wrap; }
+        .header .meta span { font-size: 13px; opacity: 0.9; }
+
+        /* Summary Cards */
+        .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .card {
+            background: #fff; border-radius: 12px; padding: 24px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06); text-align: center;
+            transition: transform 0.2s;
+        }
+        .card:hover { transform: translateY(-2px); }
+        .card .value { font-size: 36px; font-weight: 800; margin-bottom: 4px; }
+        .card .label { font-size: 13px; color: #666; }
+        .card.pass .value { color: #10b981; }
+        .card.coverage .value { color: #3b82f6; }
+        .card.time .value { color: #f59e0b; }
+        .card.framework .value { color: #8b5cf6; font-size: 22px; }
+
+        /* Coverage Bar */
+        .coverage-section { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .coverage-section h2 { font-size: 18px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .coverage-bar-wrap { margin-bottom: 16px; }
+        .coverage-bar-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+        .coverage-bar { height: 10px; background: #e5e7eb; border-radius: 5px; overflow: hidden; }
+        .coverage-bar-fill { height: 100%; border-radius: 5px; transition: width 0.6s ease; }
+        .fill-green { background: linear-gradient(90deg, #10b981, #34d399); }
+        .fill-blue { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+        .fill-yellow { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+        .fill-orange { background: linear-gradient(90deg, #f97316, #fb923c); }
+        .fill-red { background: linear-gradient(90deg, #ef4444, #f87171); }
+
+        /* Module Table */
+        .module-section { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .module-section h2 { font-size: 18px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        thead th {
+            background: #f8fafc; padding: 12px 16px; text-align: left;
+            border-bottom: 2px solid #e2e8f0; font-weight: 600; color: #475569;
+        }
+        tbody td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; }
+        tbody tr:hover { background: #f8fafc; }
+        .badge {
+            display: inline-block; padding: 2px 10px; border-radius: 12px;
+            font-size: 12px; font-weight: 600;
+        }
+        .badge-green { background: #d1fae5; color: #065f46; }
+        .badge-blue { background: #dbeafe; color: #1e40af; }
+        .badge-yellow { background: #fef3c7; color: #92400e; }
+        .badge-orange { background: #ffedd5; color: #9a3412; }
+        .badge-red { background: #fee2e2; color: #991b1b; }
+        .progress-mini { width: 80px; height: 6px; background: #e5e7eb; border-radius: 3px; display: inline-block; vertical-align: middle; }
+        .progress-mini-fill { height: 100%; border-radius: 3px; }
+
+        /* Test Classes */
+        .classes-section { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .classes-section h2 { font-size: 18px; margin-bottom: 16px; }
+        .class-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+        .class-item {
+            background: #f8fafc; border-radius: 8px; padding: 12px 16px;
+            border-left: 3px solid #3b82f6;
+        }
+        .class-item .name { font-weight: 600; font-size: 13px; color: #1e293b; }
+        .class-item .count { font-size: 12px; color: #64748b; margin-top: 2px; }
+
+        /* Analysis */
+        .analysis-section { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .analysis-section h2 { font-size: 18px; margin-bottom: 16px; }
+        .analysis-item { margin-bottom: 16px; padding: 16px; border-radius: 8px; }
+        .analysis-item.low { background: #fff7ed; border-left: 4px solid #f97316; }
+        .analysis-item.info { background: #eff6ff; border-left: 4px solid #3b82f6; }
+        .analysis-item h3 { font-size: 14px; margin-bottom: 6px; }
+        .analysis-item p { font-size: 13px; color: #475569; }
+
+        /* Footer */
+        .footer { text-align: center; padding: 24px; color: #94a3b8; font-size: 12px; }
+
+        @media (max-width: 768px) {
+            .container { padding: 12px; }
+            .header { padding: 24px; }
+            .header h1 { font-size: 22px; }
+            .card .value { font-size: 28px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>学生成绩管理系统 - 测试报告</h1>
+            <div class="subtitle">基于 pytest + unittest 的自动化测试</div>
+            <div class="meta">
+                <span>📅 生成日期：2026-06-16</span>
+                <span>🖥️ 平台：Windows 11 / Python 3.13.2</span>
+                <span>⏱️ 执行耗时：32.09 秒</span>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="summary">
+            <div class="card pass">
+                <div class="value">317</div>
+                <div class="label">测试用例通过 ✅</div>
+            </div>
+            <div class="card coverage">
+                <div class="value">66%</div>
+                <div class="label">总覆盖率（≥60% ✓）</div>
+            </div>
+            <div class="card time">
+                <div class="value">32s</div>
+                <div class="label">执行耗时</div>
+            </div>
+            <div class="card framework">
+                <div class="value">pytest + unittest</div>
+                <div class="label">测试框架</div>
+            </div>
+        </div>
+
+        <!-- Total Coverage Bar -->
+        <div class="coverage-section">
+            <h2>📊 总体覆盖率</h2>
+            <div class="coverage-bar-wrap">
+                <div class="coverage-bar-label">
+                    <span>总覆盖率</span>
+                    <span><strong>66%</strong> (3492 / 10154 语句)</span>
+                </div>
+                <div class="coverage-bar">
+                    <div class="coverage-bar-fill fill-blue" style="width: 66%;"></div>
+                </div>
+            </div>
+            <p style="font-size:13px; color:#64748b; margin-top:8px;">
+                ✅ 覆盖率已达到 ≥60% 的要求。源文件总语句数 10154 行，已覆盖 6662 行。
+            </p>
+        </div>
+
+        <!-- Module Coverage Table -->
+        <div class="module-section">
+            <h2>📁 各模块覆盖率明细</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>模块</th>
+                        <th>语句数</th>
+                        <th>未覆盖</th>
+                        <th>覆盖率</th>
+                        <th>进度</th>
+                        <th>等级</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>src/config.py</strong></td>
+                        <td>6</td>
+                        <td>0</td>
+                        <td><strong>100%</strong></td>
+                        <td><div class="progress-mini"><div class="progress-mini-fill fill-green" style="width:100%;background:linear-gradient(90deg,#10b981,#34d399)"></div></div></td>
+                        <td><span class="badge badge-green">🟢 全覆盖</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>src/utils/export.py</strong></td>
+                        <td>34</td>
+                        <td>0</td>
+                        <td><strong>100%</strong></td>
+                        <td><div class="progress-mini"><div class="progress-mini-fill fill-green" style="width:100%;background:linear-gradient(90deg,#10b981,#34d399)"></div></div></td>
+                        <td><span class="badge badge-green">🟢 全覆盖</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>tests/test_avatar_utils.py</strong></td>
+                        <td>86</td>
+                        <td>0</td>
+                        <td><strong>100%</strong></td>
+                        <td><div class="progress-mini"><div class="progress-mini-fill fill-green" style="width:100%;background:linear-gradient(90deg,#10b981,#34d399)"></div></div></td>
+                        <td><span class="badge badge-green">🟢 全覆盖</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>tests/test_data_manager.py</strong></td>
+                        <td>320</td>
+                        <td>0</td>
+                        <td><strong>100%</strong></td>
+                        <td><div class="progress-mini"><div class="progress-mini-fill fill-green" style="width:100%;background:linear-gradient(90deg,#10b981,#34d399)"></div></div></td>
+                        <td><span class="badge badge-green">🟢 全覆盖</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>student_app.py</strong></td>
+                        <td>562</td>
+                        <td>115</td>
+                        <td><strong>80%</strong></td>
+                        <td><div class="progress-mini"><div class="progress-mini-fill fill-green" style="width:80%;background:linear-gradient(90deg,#10b981,#34d399)"></div></div></td>
+                        <td><span class="badge badge-green">🟢 良好</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>modules/data_manager.py</strong></td>
+                        <td>816</td>
+                        <td>213</td>
+                        <td><strong>74%</strong></td>
+                        <td><div class="progress-mini"><div class="progress-mini-fill fill-blue" style="width:74%;background:linear-gradient(90deg,#3b82f6,#60a5fa)"></div></div></td>
+                        <td><span class="badge badge-blue">🟢 良好</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>src/utils/avatar_utils.py</strong></td>
+                        <td>61</td>
+                        <td>7</td>
+                        <td><strong>89%</strong></td>
+                        <td><div class="progress-mini"><div class="progress-mini-fill fill-green" style="width:89%;background:linear-gradient(90deg,#10b981,#34d399)"></div></div></td>
+                        <td><span class="badge badge-green">🟢 良好</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>modules/login.py</strong></td>
+                        <td>176</td>
+                        <td>67</td>
+                        <td><strong>62%</strong></td>
+                        <td><div class="progress-mini"><div class="progress-mini-fill fill-blue" style="width:62%;background:linear-gradient(90deg,#3b82f6,#60a5fa)"></div></div></td>
+                        <td><span class="badge badge-blue">🟡 及格</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>src/utils/excel_handler.py</strong></td>
+                        <td>251</td>
+                        <td>139</td>
+                        <td><strong>45%</strong></td>
+                        <td><div class="progress-mini"><div class="progress-mini-fill fill-orange" style="width:45%;background:linear-gradient(90deg,#f97316,#fb923c)"></div></div></td>
+                        <td><span class="badge badge-orange">🟠 偏低</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>app.py</strong></td>
+                        <td>1863</td>
+                        <td>1144</td>
+                        <td><strong>39%</strong></td>
+                        <td><div class="progress-mini"><div class="progress-mini-fill fill-orange" style="width:39%;background:linear-gradient(90deg,#f97316,#fb923c)"></div></div></td>
+                        <td><span class="badge badge-orange">🟠 偏低</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>teacher_app.py</strong></td>
+                        <td>2183</td>
+                        <td>1446</td>
+                        <td><strong>34%</strong></td>
+                        <td><div class="progress-mini"><div class="progress-mini-fill fill-red" style="width:34%;background:linear-gradient(90deg,#ef4444,#f87171)"></div></div></td>
+                        <td><span class="badge badge-red">🟠 偏低</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Test Files Breakdown -->
+        <div class="module-section">
+            <h2>🧪 测试文件用例分布</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>测试文件</th>
+                        <th>用例数</th>
+                        <th>状态</th>
+                        <th>测试类数</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>test_app.py</strong></td>
+                        <td>54</td>
+                        <td><span class="badge badge-green">全部通过</span></td>
+                        <td>8 个类</td>
+                    </tr>
+                    <tr>
+                        <td><strong>test_data_manager.py</strong></td>
+                        <td>52</td>
+                        <td><span class="badge badge-green">全部通过</span></td>
+                        <td>18 个类</td>
+                    </tr>
+                    <tr>
+                        <td><strong>test_teacher_app.py</strong></td>
+                        <td>44</td>
+                        <td><span class="badge badge-green">全部通过</span></td>
+                        <td>7 个类</td>
+                    </tr>
+                    <tr>
+                        <td><strong>test_excel_handler.py</strong></td>
+                        <td>44</td>
+                        <td><span class="badge badge-green">全部通过</span></td>
+                        <td>8 个类</td>
+                    </tr>
+                    <tr>
+                        <td><strong>test_student_app.py</strong></td>
+                        <td>30</td>
+                        <td><span class="badge badge-green">全部通过</span></td>
+                        <td>7 个类</td>
+                    </tr>
+                    <tr>
+                        <td><strong>test_export.py</strong></td>
+                        <td>27</td>
+                        <td><span class="badge badge-green">全部通过</span></td>
+                        <td>4 个类</td>
+                    </tr>
+                    <tr>
+                        <td><strong>test_login.py</strong></td>
+                        <td>26</td>
+                        <td><span class="badge badge-green">全部通过</span></td>
+                        <td>4 个类</td>
+                    </tr>
+                    <tr>
+                        <td><strong>test_config.py</strong></td>
+                        <td>22</td>
+                        <td><span class="badge badge-green">全部通过</span></td>
+                        <td>4 个类</td>
+                    </tr>
+                    <tr>
+                        <td><strong>test_avatar_utils.py</strong></td>
+                        <td>11</td>
+                        <td><span class="badge badge-green">全部通过</span></td>
+                        <td>4 个类</td>
+                    </tr>
+                    <tr>
+                        <td><strong>test_main.py</strong></td>
+                        <td>7</td>
+                        <td><span class="badge badge-green">全部通过</span></td>
+                        <td>3 个类</td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr style="font-weight:600; background:#f8fafc;">
+                        <td>合计</td>
+                        <td>317</td>
+                        <td><span class="badge badge-green">全部通过 ✅</span></td>
+                        <td>67 个类</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Test Classes Detail -->
+        <div class="classes-section">
+            <h2>📋 测试类明细（67 个类）</h2>
+            <div class="class-grid">
+                <div class="class-item"><div class="name">TestAppMethods</div><div class="count">19 个用例 · 管理员App方法测试</div></div>
+                <div class="class-item"><div class="name">TestTeacherMethods</div><div class="count">16 个用例 · 教师App方法测试</div></div>
+                <div class="class-item"><div class="name">TestTeacherPageBuilders</div><div class="count">14 个用例 · 教师页面构建测试</div></div>
+                <div class="class-item"><div class="name">TestAppStaticMethods</div><div class="count">13 个用例 · 管理员静态方法测试</div></div>
+                <div class="class-item"><div class="name">TestStudentPageBuilders</div><div class="count">11 个用例 · 学生页面构建测试</div></div>
+                <div class="class-item"><div class="name">TestStudentMethods</div><div class="count">11 个用例 · 学生App方法测试</div></div>
+                <div class="class-item"><div class="name">TestImportFromExcel</div><div class="count">10 个用例 · Excel导入测试</div></div>
+                <div class="class-item"><div class="name">TestExceptionClasses</div><div class="count">10 个用例 · 异常类测试</div></div>
+                <div class="class-item"><div class="name">TestAppPageBuilders</div><div class="count">10 个用例 · 管理员页面构建测试</div></div>
+                <div class="class-item"><div class="name">TestExportToCsv</div><div class="count">9 个用例 · CSV导出测试</div></div>
+                <div class="class-item"><div class="name">TestLoginWindowHelpers</div><div class="count">8 个用例 · 登录辅助方法测试</div></div>
+                <div class="class-item"><div class="name">TestExportStatistics</div><div class="count">8 个用例 · 统计导出测试</div></div>
+                <div class="class-item"><div class="name">TestExportEdgeCases</div><div class="count">8 个用例 · 导出边界测试</div></div>
+                <div class="class-item"><div class="name">TestColorValues</div><div class="count">8 个用例 · 颜色配置测试</div></div>
+                <div class="class-item"><div class="name">TestVerifyLogin</div><div class="count">7 个用例 · 登录验证测试</div></div>
+                <div class="class-item"><div class="name">TestStudent</div><div class="count">7 个用例 · 学生数据CRUD测试</div></div>
+                <div class="class-item"><div class="name">TestExportToExcel</div><div class="count">7 个用例 · Excel导出测试</div></div>
+                <div class="class-item"><div class="name">TestLoginWindowCoreLogic</div><div class="count">6 个用例 · 登录核心逻辑测试</div></div>
+                <div class="class-item"><div class="name">TestConfigConstants</div><div class="count">6 个用例 · 配置常量测试</div></div>
+                <div class="class-item"><div class="name">TestTeacher</div><div class="count">5 个用例 · 教师数据CRUD测试</div></div>
+                <div class="class-item"><div class="name">TestScore</div><div class="count">5 个用例 · 成绩验证测试</div></div>
+                <div class="class-item"><div class="name">TestDefaultFilename</div><div class="count">5 个用例 · 默认文件名测试</div></div>
+                <div class="class-item"><div class="name">TestCreateTemplate</div><div class="count">5 个用例 · 模板创建测试</div></div>
+                <div class="class-item"><div class="name">TestCourse</div><div class="count">5 个用例 · 课程CRUD测试</div></div>
+                <div class="class-item"><div class="name">TestChangeAvatar</div><div class="count">5 个用例 · 头像更换测试</div></div>
+                <div class="class-item"><div class="name">TestWindowDimensions</div><div class="count">4 个用例 · 窗口尺寸测试</div></div>
+                <div class="class-item"><div class="name">TestValidateFilepath</div><div class="count">4 个用例 · 文件路径验证测试</div></div>
+                <div class="class-item"><div class="name">TestTeacherLifecycle</div><div class="count">4 个用例 · 教师生命周期测试</div></div>
+                <div class="class-item"><div class="name">TestTeacherAppImportAndInit</div><div class="count">4 个用例 · 教师App初始化测试</div></div>
+                <div class="class-item"><div class="name">TestLoadAvatar</div><div class="count">4 个用例 · 头像加载测试</div></div>
+                <div class="class-item"><div class="name">TestConfigConstantsValues</div><div class="count">4 个用例 · 配置值测试</div></div>
+                <div class="class-item"><div class="name">TestAttendance</div><div class="count">4 个用例 · 考勤数据测试</div></div>
+                <div class="class-item"><div class="name">TestAppLifecycle</div><div class="count">4 个用例 · 管理员生命周期测试</div></div>
+                <div class="class-item"><div class="name">TestAppImportAndInit</div><div class="count">4 个用例 · 管理员App初始化测试</div></div>
+                <div class="class-item"><div class="name">TestAppConstants</div><div class="count">4 个用例 · 管理员常量测试</div></div>
+                <div class="class-item"><div class="name">TestTeacherStaticMethods</div><div class="count">3 个用例 · 教师静态方法测试</div></div>
+                <div class="class-item"><div class="name">TestTeacherAppConstants</div><div class="count">3 个用例 · 教师App常量测试</div></div>
+                <div class="class-item"><div class="name">TestSwitchRole</div><div class="count">3 个用例 · 角色切换测试</div></div>
+                <div class="class-item"><div class="name">TestStudentRunAndLogout</div><div class="count">3 个用例 · 学生运行/登出测试</div></div>
+                <div class="class-item"><div class="name">TestStudentAppImportAndInit</div><div class="count">3 个用例 · 学生App初始化测试</div></div>
+                <div class="class-item"><div class="name">TestSearch</div><div class="count">3 个用例 · 搜索功能测试</div></div>
+                <div class="class-item"><div class="name">TestSchedule</div><div class="count">3 个用例 · 课表CRUD测试</div></div>
+                <div class="class-item"><div class="name">TestNotice</div><div class="count">3 个用例 · 公告CRUD测试</div></div>
+                <div class="class-item"><div class="name">TestMainModule</div><div class="count">3 个用例 · 主模块导入测试</div></div>
+                <div class="class-item"><div class="name">TestMainFlow</div><div class="count">3 个用例 · 主流程测试</div></div>
+                <div class="class-item"><div class="name">TestExcelHandlerFunctions</div><div class="count">3 个用例 · Excel处理函数测试</div></div>
+                <div class="class-item"><div class="name">TestClass</div><div class="count">3 个用例 · 班级CRUD测试</div></div>
+                <div class="class-item"><div class="name">TestSubject</div><div class="count">2 个用例 · 科目CRUD测试</div></div>
+                <div class="class-item"><div class="name">TestScheduleUpdate</div><div class="count">2 个用例 · 课表更新测试</div></div>
+                <div class="class-item"><div class="name">TestPersistence</div><div class="count">2 个用例 · 数据持久化测试</div></div>
+                <div class="class-item"><div class="name">TestLoginWindowLifecycle</div><div class="count">2 个用例 · 登录窗口生命周期测试</div></div>
+                <div class="class-item"><div class="name">TestExcelAvailability</div><div class="count">2 个用例 · Excel可用性测试</div></div>
+                <div class="class-item"><div class="name">TestAttendanceQuery</div><div class="count">2 个用例 · 考勤查询测试</div></div>
+                <div class="class-item"><div class="name">TestAdmin</div><div class="count">2 个用例 · 管理员CRUD测试</div></div>
+                <div class="class-item"><div class="name">TestWarnings</div><div class="count">1 个用例 · 警告测试</div></div>
+                <div class="class-item"><div class="name">TestTeacherPasswordReset</div><div class="count">1 个用例 · 教师密码重置测试</div></div>
+                <div class="class-item"><div class="name">TestStudentGetLevel</div><div class="count">1 个用例 · 学生等级测试</div></div>
+                <div class="class-item"><div class="name">TestStudentAppConstants</div><div class="count">1 个用例 · 学生App常量测试</div></div>
+                <div class="class-item"><div class="name">TestResetTkState</div><div class="count">1 个用例 · Tk状态重置测试</div></div>
+                <div class="class-item"><div class="name">TestRanking</div><div class="count">1 个用例 · 排名计算测试</div></div>
+                <div class="class-item"><div class="name">TestHistory</div><div class="count">1 个用例 · 历史记录测试</div></div>
+                <div class="class-item"><div class="name">TestGetAvatarDir</div><div class="count">1 个用例 · 头像目录测试</div></div>
+                <div class="class-item"><div class="name">TestAvatarUtilsInternals</div><div class="count">1 个用例 · 头像工具内部测试</div></div>
+            </div>
+        </div>
+
+        <!-- Low Coverage Analysis -->
+        <div class="analysis-section">
+            <h2>🔍 低覆盖率模块分析</h2>
+
+            <div class="analysis-item low">
+                <h3>⚠️ teacher_app.py（34%）— 教师端 GUI 模块</h3>
+                <p>
+                    2183 条语句，仅覆盖 737 行。该模块是教师端主界面，包含 14 个页面构建方法和大量事件回调。
+                    低覆盖率原因：① Tkinter/ttkbootstrap 组件依赖操作系统窗口系统，无法在无头环境（headless）中实例化；
+                    ② 页面回调方法（如 <code>_save_grades</code>、<code>_import_scores</code> 等）需实际用户交互触发；
+                    ③ 已通过 MockWindow 模式覆盖了可测试的业务逻辑路径（页面构建、静态方法、生命周期等）。
+                </p>
+            </div>
+
+            <div class="analysis-item low">
+                <h3>⚠️ app.py（39%）— 管理员端 GUI 模块</h3>
+                <p>
+                    1863 条语句，仅覆盖 719 行。该模块是管理员端主界面，结构与 teacher_app.py 类似。
+                    低覆盖率原因同上：GUI 交互事件回调难以在自动化测试中模拟，已通过 Mock 模式覆盖核心业务逻辑。
+                </p>
+            </div>
+
+            <div class="analysis-item info">
+                <h3>ℹ️ src/utils/excel_handler.py（45%）— Excel 处理模块</h3>
+                <p>
+                    251 条语句，仅覆盖 112 行。低覆盖率原因：核心的 <code>import_from_excel()</code> 和
+                    <code>export_to_excel()</code> 依赖 openpyxl 库，部分测试使用
+                    <code>@unittest.skipIf(not EX_OK, ...)</code> 跳过。
+                    已对异常类、文件验证、模板创建等独立逻辑进行了完整测试。
+                </p>
+            </div>
+
+            <div class="analysis-item info">
+                <h3>ℹ️ modules/login.py（62%）— 登录模块</h3>
+                <p>
+                    176 条语句，覆盖 109 行。低覆盖率原因：LoginWindow 继承自 customtkinter.CTk，
+                    <code>__init__</code> 中的背景图加载和 CTK 组件创建依赖图形环境。
+                    已通过 MockLoginWindow 模式覆盖了登录验证、角色切换、核心逻辑等可测试部分。
+                </p>
+            </div>
+        </div>
+
+        <!-- Test Methodology -->
+        <div class="module-section">
+            <h2>🛠️ 测试方法说明</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>策略</th>
+                        <th>说明</th>
+                        <th>适用模块</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>直接单元测试</strong></td>
+                        <td>对纯逻辑模块直接调用方法并断言结果</td>
+                        <td>data_manager.py, config.py, export.py, avatar_utils.py</td>
+                    </tr>
+                    <tr>
+                        <td><strong>MockWindow 模式</strong></td>
+                        <td>用 Mock 替代 ttkbootstrap.Window，绕过 GUI 初始化</td>
+                        <td>app.py, teacher_app.py, student_app.py</td>
+                    </tr>
+                    <tr>
+                        <td><strong>MockLoginWindow 模式</strong></td>
+                        <td>用 Mock 替代 customtkinter.CTk，绕过登录窗口初始化</td>
+                        <td>login.py</td>
+                    </tr>
+                    <tr>
+                        <td><strong>条件跳过</strong></td>
+                        <td>依赖 openpyxl 的测试在未安装时自动跳过</td>
+                        <td>excel_handler.py</td>
+                    </tr>
+                    <tr>
+                        <td><strong>临时目录隔离</strong></td>
+                        <td>使用 pytest tmp_path 固件确保测试数据不污染真实数据</td>
+                        <td>data_manager.py 持久化测试</td>
+                    </tr>
+                    <tr>
+                        <td><strong> MagicMock + PropertyMock</strong></td>
+                        <td>模拟 DataManager 的复杂返回值，测试导出/图表逻辑</td>
+                        <td>export.py, app.py 图表方法</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>学生成绩管理系统 · 测试报告 · 生成于 2026-06-16</p>
+            <p>pytest 9.0.3 + unittest · Python 3.13.2 · Windows 11</p>
+        </div>
+    </div>
+</body>
+</html>
