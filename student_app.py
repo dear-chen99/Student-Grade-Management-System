@@ -1039,13 +1039,14 @@ class StudentApp:
         else:
             eval_text = "成绩不及格，请尽快补习！"
             eval_color = "#EF4444"
-        tk.Label(
+        eval_label = tk.Label(
             eval_frame,
             text=eval_text,
             font=("微软雅黑", 14, "bold"),
-            fg=eval_color,
             bg="#F0F9FF",
-        ).pack(pady=10)
+        )
+        eval_label.pack(pady=10)
+        eval_label.configure(fg=eval_color)
 
         # ---------- 成绩预警 ----------
         warning_frame = tk.Frame(parent, bg="white")
@@ -1059,18 +1060,19 @@ class StudentApp:
                 text=f"成绩预警：{', '.join(fail_subjects)} 不及格，"
                 "请重点复习并准备补考！",
                 font=("微软雅黑", 11, "bold"),
-                fg="#EF4444",
                 bg="#FEE2E2",
             )
             warn_label.pack(fill="x", padx=10, pady=5)
+            warn_label.configure(fg="#EF4444")
         else:
-            tk.Label(
+            safe_label = tk.Label(
                 warning_frame,
                 text="暂无成绩预警，继续保持！",
                 font=("微软雅黑", 11),
-                fg="#10B981",
                 bg="white",
-            ).pack(anchor="w")
+            )
+            safe_label.pack(anchor="w")
+            safe_label.configure(fg="#10B981")
 
         # ---------- 详细分析 ----------
         detail_frame = tk.Frame(parent, bg="white")
