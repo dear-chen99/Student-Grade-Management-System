@@ -1,7 +1,3 @@
-<br />
-
-***
-
 # 学生成绩管理系统
 
 ## 项目简介
@@ -35,6 +31,7 @@
 | **ttkbootstrap 1.10+**        | 界面美化与主题（青绿色系） |
 | **customtkinter 5.2+**        | 登录窗口样式        |
 | **matplotlib 3.7+**           | 图表绘制          |
+| **numpy 1.21+**               | 雷达图等科学计算      |
 | **openpyxl 3.0+ / xlrd 2.0+** | Excel 读写      |
 | **Pillow 10.0+**              | 头像处理          |
 | **pytest 9.0+**               | 单元测试框架        |
@@ -46,43 +43,56 @@
 ```text
 学生成绩管理系统/
 ├── data/                     # 数据存储目录
-│   ├── grades.json           # 学生成绩数据（JSON格式）
+│   ├── grades.json         # 学生成绩数据（JSON格式）
 │   └── grades.json.bak       # 自动备份文件
-├── img/                      # 图片资源（头像、图标、背景等）
-│   ├── avatars/              # 用户头像存储
-│   ├── app_icon.ico
-│   ├── 学生成绩管理logo.ico
-│   ├── bg.jpeg
-│   └── ...
+├── dist/                   # 打包生成目录（运行时会自动创建）
+├── img/                      # 图片资源
+│   ├── avatars/              # 用户动态头像存储
+│   ├── 横向logo.png           # 登录界面大Logo
+│   ├── 学生成绩管理logo.ico    # 系统Logo图标
+│   ├── app_icon.ico          # 程序窗口图标
+│   ├── bg.jpeg               # 登录窗口背景图
+│   └── icon.ico              # 备用图标
 ├── modules/                  # 核心功能模块
 │   ├── data_manager.py       # 数据管理核心类
 │   └── login.py              # 登录窗口
 ├── src/                      # 源代码目录
-│   ├── config.py             # 系统配置（颜色、窗口、登录等）
+│   ├── config.py             # 系统配置（颜色、窗口等）
 │   └── utils/                # 工具模块
+│       ├── __init__.py
 │       ├── avatar_utils.py   # 头像加载与更换
+│       ├── base_app.py       # 基础应用父类（封装UI公共逻辑）
 │       ├── excel_handler.py  # Excel 导入导出
 │       └── export.py         # CSV 导出与统计导出
-├── tests/                    # 单元测试目录
+├── tests/                    # 单元测试完整目录
+│   ├── __init__.py
+│   ├── conftest.py           # 测试全局配置
+│   ├── test_app.py
+│   ├── test_avatar_utils.py
+│   ├── test_base_app.py
 │   ├── test_config.py
 │   ├── test_data_manager.py
 │   ├── test_excel_handler.py
 │   ├── test_export.py
 │   ├── test_login.py
-│   ├── test_app.py
-│   ├── test_teacher_app.py
+│   ├── test_main.py
 │   ├── test_student_app.py
-│   └── test_main.py
-├── app.py                    # 管理员主程序
-├── teacher_app.py            # 教师主程序
-├── student_app.py            # 学生主程序
-├── main.py                   # 程序入口（含登录引导）
-├── requirements.txt          # 依赖清单
+│   └── test_teacher_app.py
+├── .coverage                 # 覆盖率数据文件
 ├── .gitignore                # Git 忽略规则
-└── README.md                 # 项目说明文档
+├── 测试报告.html          # 自动生成的单元测试HTML报告
+├── app.py                    # 管理员主程序
+├── LICENSE                   # 开源许可文件
+├── main.py               # 程序总入口（包含登录引导）
+├── README.md                 # 项目说明文档
+├── requirements.txt          # 依赖清单
+├── student_app.py            # 学生端主程序
+└── teacher_app.py            # 教师端主程序
 ```
 
-## 安装与运行
+<br />
+
+# 安装与运行
 
 ### 环境要求
 
@@ -132,7 +142,7 @@ python main.py
 pytest --cov=modules --cov=src --cov-report=html
 ```
 
-生成的 HTML 报告位于 `htmlcov/index.html`。
+生成的 HTML 报告会自动更新至项目根目录下的 `测试报告.html`。
 
 ## 主要功能模块使用说明
 
@@ -232,30 +242,48 @@ pytest --cov=modules --cov=src --cov-report=html
 
 ## 单元测试与覆盖率
 
-| 指标     | 数值              |
-| :----- | :-------------- |
-| 总测试数   | 314 项           |
-| 通过数    | 314 项 ✅         |
-| 失败数    | 0 项             |
-| 源代码覆盖率 | **66%**（核心逻辑模块） |
-| 测试文件数量 | 10 个            |
+| 指标     | 数值      |
+| :----- | :------ |
+| 测试用例总数 | 343 项   |
+| 通过数    | 343 项 ✅ |
+| 失败数    | 0 项     |
+| 总覆盖率   | **67%** |
+| 测试文件数量 | 12 个    |
+| 执行时间   | 30.5 秒  |
 
-### 各模块测试覆盖率
+### 各模块覆盖率详情
 
-| 模块                           | 覆盖率      | 说明                        |
-| :--------------------------- | :------- | :------------------------ |
-| `src/config.py`              | **100%** | 配置常量，完全覆盖                 |
-| `src/utils/export.py`        | **100%** | 导出功能，完全覆盖                 |
-| `src/utils/avatar_utils.py`  | **89%**  | 头像处理，仅 PIL 不可用分支未覆盖       |
-| `student_app.py`             | **79%**  | 学生界面，部分 GUI 回调未覆盖         |
-| `modules/data_manager.py`    | **74%**  | 核心数据管理，测试完整               |
-| `modules/login.py`           | **62%**  | 登录窗口，部分 GUI 布局未覆盖         |
-| `src/utils/excel_handler.py` | **45%**  | Excel 处理，依赖 openpyxl 文件读写 |
-| `app.py`                     | **41%**  | 管理员界面，GUI 回调密集            |
-| `teacher_app.py`             | **33%**  | 教师界面，UI 代码量大，Mock 测试为主    |
-| `main.py`                    | **17%**  | 程序入口，主循环依赖实际运行            |
+| 模块文件                         | 语句数        | 未覆盖       | 覆盖率      | 状态        |
+| :--------------------------- | :--------- | :-------- | :------- | :-------- |
+| `src/config.py`              | 6          | 0         | **100%** | 🟢 全覆盖    |
+| `src/utils/export.py`        | 34         | 0         | **100%** | 🟢 全覆盖    |
+| `src/utils/__init__.py`      | 0          | 0         | **100%** | 🟢 全覆盖    |
+| `src/utils/avatar_utils.py`  | 61         | 7         | **89%**  | 🟢 良好     |
+| `student_app.py`             | 464        | 95        | **80%**  | 🟢 良好     |
+| `src/__init__.py`            | 5          | 1         | **80%**  | 🟢 良好     |
+| `modules/data_manager.py`    | 842        | 233       | **72%**  | 🟢 良好     |
+| `main.py`                    | 94         | 32        | **66%**  | 🟡 及格     |
+| `modules/login.py`           | 184        | 71        | **61%**  | 🟡 及格     |
+| `src/utils/base_app.py`      | 341        | 138       | **60%**  | 🟡 及格     |
+| `src/utils/excel_handler.py` | 252        | 137       | **46%**  | 🟠 偏低     |
+| `app.py`                     | 1742       | 1103      | **37%**  | 🔴 GUI密集  |
+| `teacher_app.py`             | 1887       | 1298      | **31%**  | 🔴 GUI密集  |
+| **TOTAL**                    | **10,517** | **3,486** | **67%**  | ✅ 达标 ≥60% |
 
-> **说明**：低覆盖率模块均为 GUI 交互层，主要原因是 Tkinter/ttkbootstrap 组件依赖操作系统窗口系统，无法在无头测试环境中实例化。测试采用 **MockWindow / MockLoginWindow** 模式模拟 GUI 组件，重点测试业务逻辑。
+> **低覆盖率说明**：`app.py` (37%) 与 `teacher_app.py` (31%) 属于 GUI 交互层，内含大量 Tkinter/ttkbootstrap 界面组件（Canvas、Treeview、Chart 等），在无图形显示环境下无法实例化，已通过 `MockWindow` 模式覆盖可测试的业务逻辑路径；`excel_handler.py` (46%) 中大量代码依赖 `openpyxl` 实际文件 I/O，已对核心功能进行 mock 测试。整体 TOTAL 覆盖率 67% > 60% ✅。
+
+### 测试策略明细
+
+| 测试模块                                       | 测试方式                       | 核心策略                                                |
+| :----------------------------------------- | :------------------------- | :-------------------------------------------------- |
+| `modules/data_manager.py`                  | pytest + tmp\_path         | 使用 `tmp_path` 隔离实例，覆盖所有 CRUD 及异常路径                  |
+| `modules/login.py`                         | unittest + MockLoginWindow | MockLoginWindow 绕过 CTk 初始化，直接测试登录验证逻辑               |
+| `app.py / teacher_app.py / student_app.py` | unittest.mock.patch        | patch `ttkbootstrap.Window/Style`，MockWindow 替代真实窗口 |
+| `src/utils/base_app.py`                    | unittest.mock.patch        | mock GUI 组件，测试状态栏/页面切换/导出/头像等基础功能                   |
+| `src/utils/export.py`                      | unittest + MagicMock       | MagicMock 模拟 DataManager，测试 CSV 导出全路径及边界条件          |
+| `src/utils/excel_handler.py`               | unittest + skipIf          | @skipIf(not EX\_OK) 跳过 openpyxl 依赖测试，mock 核心逻辑      |
+| `src/utils/avatar_utils.py`                | pytest + patch             | 测试 PIL 可用/不可用两种路径，临时文件验证头像替换逻辑                      |
+| `src/config.py`                            | unittest                   | 验证所有配置字典存在、颜色格式合法、数值范围正确                            |
 
 ## 开源许可证
 
