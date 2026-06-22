@@ -17,6 +17,7 @@ from ttkbootstrap import Window, Style
 
 from modules.data_manager import DataManager
 from src.utils.avatar_utils import load_avatar, change_avatar
+from src.utils.base_app import BaseApp
 
 # 配置模块级日志记录器，用于输出运行时信息与警告
 logger = logging.getLogger(__name__)
@@ -33,7 +34,7 @@ TEAL_COLOR = "#00BFA5"
 TEAL_DARK = "#00897B"
 
 
-class StudentApp:
+class StudentApp(BaseApp):
     """学生专属界面类，带左侧菜单栏和右侧动态页面.
 
     本类封装了学生端所有 UI 的构建与交互逻辑，包括：
@@ -67,160 +68,12 @@ class StudentApp:
             data_manager: 数据管理器实例。若为 None，则自动创建新实例。
             user_info: 当前登录学生信息字典，包含 student_id、name、class 等字段。
         """
-        # 初始化数据管理器与用户信息
-        self.dm = data_manager if data_manager else DataManager()
-        self.user_info = user_info or {}
+        super().__init__(data_manager=data_manager, user_info=user_info)
         self.student_id = self.user_info.get("student_id", "")
         self.student_name = self.user_info.get("name", "学生")
         self.class_name = self.user_info.get("class", "")
 
-        # 创建主窗口并设置基本属性
-        self.win = Window(themename="cosmo")
-        self.win.title("学生中心 - 学生成绩管理系统")
-        self.win.state("zoomed")
-        self.win.minsize(1024, 768)
-        self.win.configure(bg="#F3F4F6")
-
-        # 配置全局 ttk 样式，统一 Treeview 与侧边栏按钮外观
-        style = Style("cosmo")
-        style.configure("Treeview", font=("微软雅黑", 12), rowheight=36)
-        style.configure(
-            "Treeview.Heading",
-            font=("微软雅黑", 12, "bold"),
-            background="#E6F7F0",
-            foreground="#0F766E",
-        )
-        style.configure(
-            "Sidebar.TButton",
-            font=("微软雅黑", 12),
-            background="#0F766E",
-            padding=(15, 12),
-            relief="flat",
-            borderwidth=0,
-        )
-        style.map(
-            "Sidebar.TButton",
-            background=[("active", "#e9ecef")],
-            foreground=[("active", "#00897B")],
-        )
-        style.configure(
-            "Sidebar.Active.TButton",
-            font=("微软雅黑", 12, "bold"),
-            padding=(15, 12),
-            relief="flat",
-            borderwidth=0,
-            background="#065F46",
-            foreground="white",
-        )
-
-        # 构建 UI 并绑定窗口关闭事件，确保数据自动保存
-        self._build_ui()
-        self.win.protocol("WM_DELETE_WINDOW", self._on_close)
-
-    def run(self) -> dict:
-        """启动应用程序主循环.
-
-        进入 tkinter 主事件循环，等待用户交互。窗口关闭后返回注销标志。
-
-        Returns:
-            包含 logout 标志的字典，例如 {"logout": True} 表示用户主动退出登录。
-        """
-        self.win.mainloop()
-        return {"logout": getattr(self, "_logout", False)}
-
-    def _on_close(self) -> None:
-        """窗口关闭时的回调处理.
-
-        尝试保存数据并销毁主窗口。若保存失败则记录警告日志，不影响关闭流程。
-        """
-        try:
-            self.dm.save()
-        except Exception as e:
-            logger.warning("窗口关闭时保存数据失败: %s", e)
-        self.win.destroy()
-
-    # ========== UI 构建 ==========
-    def _build_ui(self) -> None:
-        """构建学生界面整体布局.
-
-        依次创建顶部标题栏、主容器（左侧导航栏 + 右侧内容区），
-        并在侧边栏加载学生头像与导航菜单。默认显示仪表盘页面。
-        """
-        # ---------- 顶部标题栏 ----------
-        header = tk.Frame(self.win, bg=TEAL_COLOR, height=60)
-        header.pack(fill="x")
-        header.pack_propagate(False)
-        tk.Label(
-            header,
-            text=f"学生中心 - {self.student_name}",
-            font=("微软雅黑", 16, "bold"),
-            fg="white",
-            bg=TEAL_COLOR,
-        ).pack(side="left", padx=20, pady=12)
-
-        # 右上角用户信息及退出登录按钮
-        user_frame = tk.Frame(header, bg=TEAL_COLOR)
-        user_frame.pack(side="right", padx=20, pady=12)
-
-        tk.Label(
-            user_frame,
-            text=f"👤 {self.student_name}",
-            font=("微软雅黑", 11),
-            fg="white",
-            bg=TEAL_COLOR,
-        ).pack(side="left", padx=(0, 15))
-
-        tk.Button(
-            user_frame,
-            text="退出登录",
-            font=("微软雅黑", 10),
-            bg="white",
-            fg=TEAL_COLOR,
-            activebackground="#E6F7F0",
-            activeforeground=TEAL_COLOR,
-            relief="flat",
-            cursor="hand2",
-            command=self._confirm_logout,
-            padx=12,
-            pady=4,
-        ).pack(side="left")
-
-        # ---------- 主容器：侧边栏 + 内容区 ----------
-        main_container = tk.Frame(self.win, bg="#F3F4F6")
-        main_container.pack(fill="both", expand=True)
-
-        sidebar = tk.Frame(main_container, width=200, bg="#0F766E")
-        sidebar.pack(side="left", fill="y")
-        sidebar.pack_propagate(False)
-
-        self.content_area = tk.Frame(main_container, bg="white")
-        self.content_area.pack(side="right", fill="both", expand=True)
-
-        # ---------- 侧边栏顶部头像区域 ----------
-        avatar_frame = tk.Frame(sidebar, bg="#0F766E", height=80)
-        avatar_frame.pack(fill="x", pady=(15, 5))
-        avatar_frame.pack_propagate(False)
-        try:
-            # 从数据管理器读取当前学生数据并加载头像
-            student_data = self.dm.students.get(self.student_id, {})
-            avatar_path = student_data.get("avatar", "")
-            self.sidebar_avatar_label = tk.Label(avatar_frame, bg="#0F766E")
-            self.sidebar_avatar_label.pack(pady=5)
-            load_avatar(self.sidebar_avatar_label, avatar_path, size=(50, 50))
-        except Exception:
-            # 头像加载失败时显示默认 emoji
-            tk.Label(
-                avatar_frame, text="👤", font=("微软雅黑", 28), bg="#0F766E", fg="white"
-            ).pack(pady=5)
-        tk.Label(
-            avatar_frame,
-            text=self.student_name,
-            font=("微软雅黑", 11, "bold"),
-            fg="white",
-            bg="#0F766E",
-        ).pack()
-
-        # ---------- 页面映射与导航按钮初始化 ----------
+        # 页面映射
         self.page_builders = {
             "📊 仪表盘": self._build_dashboard_page,
             "个人信息": self._build_profile_page,
@@ -231,113 +84,32 @@ class StudentApp:
             "📅 课表查看": self._build_schedule_view_page,
         }
 
-        self.nav_buttons = []
+        self._build_ui()
+        self.win.protocol("WM_DELETE_WINDOW", self._on_close)
 
-        # -------------- 1. 先单独放【仪表盘】（ttk.Button）--------------
-        idx = 0
-        text, builder = list(self.page_builders.items())[idx]
+    def _get_window_title(self) -> str:
+        """返回主窗口标题."""
+        return "学生中心 - 学生成绩管理系统"
 
-        def cmd(b=builder, btn_idx=idx):
-            """导航按钮点击命令.
+    def _get_header_title(self) -> str:
+        """返回顶部横幅标题文本."""
+        return f"学生中心 - {self.student_name}"
 
-            切换至对应页面并将该按钮设为选中状态。
+    def _get_user_display_name(self) -> str:
+        """返回右上角显示的用户名称."""
+        return self.student_name
 
-            Args:
-                b: 页面构建函数，由闭包捕获。
-                btn_idx: 当前按钮在导航栏中的索引，由闭包捕获。
-            """
-            self._switch_page(b)
-            self._set_active_button(btn_idx)
+    def _get_avatar_data(self) -> dict:
+        """返回学生头像数据."""
+        student = self.dm.students.get(self.student_id, {})
+        return {
+            "name": self.student_name,
+            "avatar": student.get("avatar", ""),
+        }
 
-        btn = ttk.Button(sidebar, text=text, style="Sidebar.TButton", command=cmd)
-        btn.pack(fill="x", padx=15, ipady=5)
-        self.nav_buttons.append(btn)
-
-        # -------------- 2. 仪表盘与其他菜单之间的空隙 --------------
-        spacer = tk.Frame(sidebar, height=20, bg="#0F766E")
-        spacer.pack(fill="x")
-
-        # -------------- 3. 其他菜单（tk.Label）--------------
-        for idx, (text, builder) in enumerate(
-            list(self.page_builders.items())[1:], start=1
-        ):
-            btn = tk.Label(
-                sidebar,
-                text=text,
-                font=("微软雅黑", 12),
-                bg="#f8f9fa",
-                fg="#495057",
-                cursor="hand2",
-            )
-            btn.bind(
-                "<Button-1>",
-                lambda e, b=builder, i=idx: (
-                    self._switch_page(b),
-                    self._set_active_button(i),
-                ),
-            )
-            btn.pack(fill="x", padx=15, ipady=8)
-            self.nav_buttons.append(btn)
-
-        # 默认选中【仪表盘】并加载对应页面
-        self._set_active_button(0)
-        self._switch_page(self._build_dashboard_page)
-
-    def _switch_page(self, builder_func) -> None:
-        """切换右侧内容页面.
-
-        清空内容区后调用指定构建函数重新渲染页面。
-
-        Args:
-            builder_func: 页面构建函数，接收父 Frame 作为参数。
-        """
-        for widget in self.content_area.winfo_children():
-            widget.destroy()
-        page_frame = tk.Frame(self.content_area, bg="white")
-        page_frame.pack(fill="both", expand=True, padx=10, pady=10)
-        builder_func(page_frame)
-
-    def _set_active_button(self, active_idx: int) -> None:
-        """设置导航按钮的选中状态样式.
-
-        根据索引将对应按钮设为高亮样式，其余恢复默认样式。
-        注意：索引 0 为 ttk.Button，其余为 tk.Label，配置方式不同。
-
-        Args:
-            active_idx: 当前选中按钮的索引。
-        """
-        for idx, btn in enumerate(self.nav_buttons):
-            if idx == active_idx:
-                if idx == 0:
-                    btn.configure(style="Sidebar.Active.TButton")
-                else:
-                    btn.configure(
-                        font=("微软雅黑", 12, "bold"),
-                        fg=TEAL_COLOR,
-                        bg="#dee2e6",
-                    )
-            else:
-                if idx == 0:
-                    btn.configure(style="Sidebar.TButton")
-                else:
-                    btn.configure(
-                        font=("微软雅黑", 12),
-                        fg="#495057",
-                        bg="#f8f9fa",
-                    )
-
-    def _confirm_logout(self) -> None:
-        """确认退出登录.
-
-        弹出确认对话框，用户确认后保存数据、设置注销标志并关闭窗口。
-        """
-        if messagebox.askyesno("确认退出", "确定要退出登录吗？"):
-            self._logout = True
-            try:
-                self.dm.save()
-            except Exception as e:
-                logger.warning("退出登录时保存数据失败: %s", e)
-            self.win.destroy()
+    def _save_avatar(self, path: str) -> None:
+        """保存学生头像路径."""
+        self.dm.update_student(self.student_id, avatar=path)
 
     def _get_level(self, score: float | None) -> str:
         """根据成绩分数返回对应等级.
@@ -653,57 +425,6 @@ class StudentApp:
             width=10,
             command=save_profile,
         ).pack()
-
-    def _load_avatar(self) -> None:
-        """加载并显示学生头像.
-
-        同时更新个人中心头像与侧边栏头像（若已初始化）。
-        """
-        student = self.dm.get_student(self.student_id) or {}
-        avatar_path = student.get("avatar", "")
-        # 更新个人中心头像
-        load_avatar(self.avatar_label, avatar_path)
-        # 更新侧边栏头像
-        if hasattr(self, "sidebar_avatar_label"):
-            load_avatar(self.sidebar_avatar_label, avatar_path, size=(50, 50))
-        self.win.update_idletasks()
-
-    def _change_avatar(self) -> None:
-        """更换学生头像.
-
-        打开头像更换对话框，用户选择新头像后通过回调保存路径并刷新显示。
-        """
-        student = self.dm.get_student(self.student_id) or {}
-        current = student.get("avatar", "")
-
-        def save_callback(path: str) -> None:
-            """头像保存回调函数.
-
-            将新头像路径更新到学生数据中，并刷新界面头像显示。
-
-            Args:
-                path: 新头像文件的绝对路径。
-            """
-            print("=" * 50)
-            print("保存头像路径:", path)
-            try:
-                self.dm.update_student(self.student_id, avatar=path)
-                updated = self.dm.get_student(self.student_id)
-                print("更新后学生数据:", updated)
-                self._load_avatar()
-                messagebox.showinfo("成功", "头像已更新并保存")
-            except Exception as e:
-                print("ERROR in save_callback:", e)
-                messagebox.showerror("保存失败", f"无法保存头像：{e}")
-
-        try:
-            result = change_avatar(self.win, current, save_callback)
-            if result is None and current:
-                pass
-        except Exception as e:
-            messagebox.showerror(
-                "错误", f"更换头像时发生异常：{e}\n请检查是否安装了 Pillow 库。"
-            )
 
     def _change_password(self) -> None:
         """修改个人密码.
@@ -1225,10 +946,13 @@ class StudentApp:
         )
         self._student_notice_tree.configure(yscrollcommand=vsb.set)
 
+        self._student_notice_tree.tag_configure("odd", background="#F8FAFC")
+        self._student_notice_tree.tag_configure("even", background="#FFFFFF")
         self._student_notice_tree.pack(side="left", fill="both", expand=True)
         vsb.pack(side="right", fill="y")
 
-        for notice in notices:
+        for idx, notice in enumerate(notices):
+            tag = "odd" if idx % 2 == 0 else "even"
             self._student_notice_tree.insert(
                 "",
                 "end",
@@ -1238,6 +962,7 @@ class StudentApp:
                     notice.get("date", ""),
                     notice.get("target", "all"),
                 ),
+                tags=(tag,),
             )
 
         def _on_double_click(event):
