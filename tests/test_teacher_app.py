@@ -486,10 +486,10 @@ class TestTeacherAppImportAndInit(unittest.TestCase):
     @patch("teacher_app.Style", MockStyle)
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
-    def test_teacher_app_logout_flag(self, mock_change, mock_load):
+    def test_teacher_app_logout(self, mock_change, mock_load):
         """测试退出登录标志初始为 False。
 
-        预期结果：新创建的 TeacherApp 实例 _logout_flag 为 False。
+        预期结果：新创建的 TeacherApp 实例 _logout 为 False。
         """
         import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
 
@@ -527,7 +527,7 @@ class TestTeacherAppImportAndInit(unittest.TestCase):
             data_manager=mock_dm,
             user_info={"teacher_id": "T001", "name": "王老师"},
         )
-        self.assertFalse(instance._logout_flag)
+        self.assertFalse(instance._logout)
 
 
 class TestTeacherAppConstants(unittest.TestCase):
@@ -1011,17 +1011,14 @@ class TestTeacherPageBuilders(unittest.TestCase):
     @patch("teacher_app.load_avatar")
     @patch("teacher_app.change_avatar")
     def test_build_class_page(self, mock_change, mock_load):
-        """测试 _build_class_page 页面构建。
-
-        预期结果：页面构建不抛异常。
-        """
-        import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
+        """测试 _build_class_page 页面构建（教师端只读）."""
+        import teacher_app
 
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
         parent = MockWindow()
         app._build_class_page(parent)
-        self.assertTrue(True)
+        self.assertTrue(hasattr(app, "cl_tree"))
 
     @patch.dict("sys.modules", _mock_modules)
     @patch("teacher_app.messagebox", tk_mock.messagebox)
@@ -1265,8 +1262,8 @@ class TestTeacherMethods(unittest.TestCase):
     @patch("teacher_app.simpledialog", tk_mock.simpledialog)
     @patch("teacher_app.Window", MockWindow)
     @patch("teacher_app.Style", MockStyle)
-    @patch("teacher_app.load_avatar")
-    @patch("teacher_app.change_avatar")
+    @patch("src.utils.base_app.load_avatar")
+    @patch("src.utils.base_app.change_avatar")
     def test_load_avatar(self, mock_change, mock_load):
         """测试 _load_avatar 方法。
 
@@ -1288,8 +1285,8 @@ class TestTeacherMethods(unittest.TestCase):
     @patch("teacher_app.simpledialog", tk_mock.simpledialog)
     @patch("teacher_app.Window", MockWindow)
     @patch("teacher_app.Style", MockStyle)
-    @patch("teacher_app.load_avatar")
-    @patch("teacher_app.change_avatar")
+    @patch("src.utils.base_app.load_avatar")
+    @patch("src.utils.base_app.change_avatar")
     def test_change_avatar(self, mock_change, mock_load):
         """测试 _change_avatar 方法。
 
@@ -1654,15 +1651,15 @@ class TestTeacherLifecycle(unittest.TestCase):
     def test_logout(self, mock_change, mock_load):
         """测试 _logout 方法。
 
-        预期结果：设置 _logout_flag 为 True 并调用 save()。
+        预期结果：设置 _logout 为 True 并调用 save()。
         """
         import teacher_app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
 
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
-        self.assertFalse(app._logout_flag)
-        app._logout()
-        self.assertTrue(app._logout_flag)
+        self.assertFalse(app._logout)
+        app._confirm_logout()
+        self.assertTrue(app._logout)
         mock_dm.save.assert_called_once()
 
 

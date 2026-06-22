@@ -849,7 +849,7 @@ class TestAppImportAndInit(unittest.TestCase):
     @patch("app.Style", MockStyle)
     @patch("app.load_avatar")
     @patch("app.change_avatar")
-    def test_app_logout_flag(self, mock_change, mock_load):
+    def test_app_logout(self, mock_change, mock_load):
         """测试退出登录标志初始为 False."""
         import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
 
@@ -870,7 +870,7 @@ class TestAppImportAndInit(unittest.TestCase):
         mock_dm.search.return_value = []
         mock_dm.get_history.return_value = []
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
-        self.assertFalse(instance._logout_flag)
+        self.assertFalse(instance._logout)
 
 
 class TestAppConstants(unittest.TestCase):
@@ -1332,6 +1332,25 @@ class TestAppPageBuilders(unittest.TestCase):
         instance._build_excel_page(parent)
         self.assertTrue(hasattr(instance, "ex_tree"))
         self.assertTrue(hasattr(instance, "_excel_parent"))
+
+    @patch.dict("sys.modules", _mock_modules)
+    @patch("app.messagebox", tk_mock.messagebox)
+    @patch("app.filedialog", tk_mock.filedialog)
+    @patch("app.simpledialog", tk_mock.simpledialog)
+    @patch("app.Window", MockWindow)
+    @patch("app.Style", MockStyle)
+    @patch("app.load_avatar")
+    @patch("app.change_avatar")
+    def test_build_class_page(self, mock_change, mock_load):
+        """测试 _build_class_page 构建班级管理页面."""
+        import app
+
+        mock_dm = _create_mock_dm()
+        mock_dm.classes = ["一班"]
+        instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
+        parent = MockWindow()
+        instance._build_class_page(parent)
+        self.assertTrue(hasattr(instance, "cl_tree"))
 
     @patch.dict("sys.modules", _mock_modules)
     @patch("app.messagebox", tk_mock.messagebox)
@@ -1915,8 +1934,8 @@ class TestAppLifecycle(unittest.TestCase):
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         instance.win = MagicMock()
         tk_mock.messagebox.askyesno.return_value = True
-        instance._logout()
-        self.assertTrue(instance._logout_flag)
+        instance._confirm_logout()
+        self.assertTrue(instance._logout)
         mock_dm.save.assert_called()
         instance.win.destroy.assert_called()
 
@@ -1936,8 +1955,8 @@ class TestAppLifecycle(unittest.TestCase):
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         instance.win = MagicMock()
         tk_mock.messagebox.askyesno.return_value = False
-        instance._logout()
-        self.assertFalse(instance._logout_flag)
+        instance._confirm_logout()
+        self.assertFalse(instance._logout)
         instance.win.destroy.assert_not_called()
 
 
