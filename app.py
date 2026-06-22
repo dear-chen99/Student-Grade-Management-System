@@ -31,6 +31,7 @@ from src.utils.excel_handler import (
 )
 from src.utils.export import export_to_csv, get_default_filename as get_csv_filename
 from src.utils.avatar_utils import load_avatar, change_avatar
+from src.utils.base_app import BaseApp
 
 # Excel 库可用性
 EX_OK: bool = is_excel_available()
@@ -88,7 +89,7 @@ TEAL_DARK = "#00897B"  # 深青绿色（鼠标悬停或文字颜色）
 TEAL_LIGHT = "#E0F2F1"  # 浅青绿色（卡片、背景区域可选）
 
 
-class App:
+class App(BaseApp):
     """学生成绩管理系统主应用程序类."""
 
     def __init__(
@@ -102,27 +103,19 @@ class App:
             data_manager: 外部传入的数据管理器实例，为 None 时自动创建。
             user_info: 当前登录用户信息字典。
         """
-        try:
-            self.dm: DataManager = data_manager if data_manager else DataManager()
-            logger.info("数据管理器初始化成功")
-        except DataLoadError as e:
-            logger.error("数据管理器初始化失败: %s", e)
-            messagebox.showerror(
-                "数据错误",
-                f"无法加载数据文件，系统将使用空数据启动。\n\n错误详情: {e}",
-            )
-            self.dm = DataManager()
-        self.user_info = user_info or {}
-        self._logout_flag = False  # 退出登录标志
-
-        # 使用 ttkbootstrap 的窗口
-        self.win = Window(themename="cosmo")
-        self.win.title(WINDOW_CONFIG["title"])
-        self.win.state("zoomed")
-        min_w = WINDOW_CONFIG["min_width"]
-        min_h = WINDOW_CONFIG["min_height"]
-        self.win.minsize(min_w, min_h)
-        self.win.configure(bg=COLORS["bg"])
+        dm = data_manager
+        if dm is None:
+            try:
+                dm = DataManager()
+                logger.info("数据管理器初始化成功")
+            except DataLoadError as e:
+                logger.error("数据管理器初始化失败: %s", e)
+                messagebox.showerror(
+                    "数据错误",
+                    f"无法加载数据文件，系统将使用空数据启动。\n\n错误详情: {e}",
+                )
+                dm = DataManager()
+        super().__init__(data_manager=dm, user_info=user_info)
 
         icon_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "img", "app_icon.ico"
@@ -130,23 +123,13 @@ class App:
         if os.path.exists(icon_path):
             self.win.iconbitmap(icon_path)
 
-        # 自定义样式：强制顶部横幅为青绿色
+        # App 特有的 Treeview 样式覆盖
         style = Style("cosmo")
-        style.configure("Header.TFrame", background=TEAL_COLOR)
-        style.configure(
-            "Header.TLabel",
-            background=TEAL_COLOR,
-            foreground="white",
-            font=("微软雅黑", 16, "bold"),
-        )
-        style.configure("Sidebar.TFrame", background="#f8f9fa")
-        style.configure("Content.TFrame", background="white")
-
         style.configure(
             "Treeview",
             font=("微软雅黑", 13),
             rowheight=40,
-            padding=(12, 6),  # 单元格左右内边距
+            padding=(12, 6),
             background="white",
             fieldbackground="white",
         )
@@ -154,156 +137,16 @@ class App:
             "Treeview.Heading",
             font=("微软雅黑", 13, "bold"),
             padding=(10, 8),
-            background="#E6F7F0",  # 淡绿色表头背景
-            foreground="#0F766E",  # 深绿色表头文字
+            background="#E6F7F0",
+            foreground="#0F766E",
         )
 
-        # ========== 侧边栏按钮三套核心样式 ==========
-        style.configure(
-            "Sidebar.TButton",
-            font=("微软雅黑", 12),
-            background="#0F766E",
-            padding=(15, 12),
-            relief="flat",
-            borderwidth=0,
-        )
-        style.map(
-            "Sidebar.TButton",
-            background=[("active", "#e9ecef")],
-            foreground=[("active", "#00897B")],
-        )
-        style.configure(
-            "Sidebar.Active.TButton",
-            font=("微软雅黑", 12, "bold"),
-            padding=(15, 12),
-            relief="flat",
-            borderwidth=0,
-            background="#065F46",
-            foreground="white",
-        )
-
-        self._build_ui()
-        self._set_active_button(0)
-
-        self.win.protocol("WM_DELETE_WINDOW", self._on_close)
-        logger.info("应用程序初始化完成")
-
-    def run(self) -> dict:
-        """启动应用程序主循环，返回退出登录标志."""
-        self.win.mainloop()
-        return {"logout": getattr(self, "_logout_flag", False)}
-
-    def _on_close(self) -> None:
-        """窗口关闭时的清理操作."""
-        try:
-            self.dm.save()
-            logger.info("应用程序正常关闭，数据已保存")
-        except DataSaveError as e:
-            logger.error("关闭时保存数据失败: %s", e)
-        self.win.destroy()
-
-    def _logout(self) -> None:
-        """退出登录，返回登录界面."""
-        if messagebox.askyesno("确认退出", "确定要退出登录吗？"):
-            self._logout_flag = True
-            try:
-                self.dm.save()
-            except Exception as e:
-                logger.warning("退出登录时保存数据失败: %s", e)
-            self.win.destroy()
-
-    # ========== UI 构建：顶部横幅 + 左侧菜单 + 右侧内容 ==========
-
-    def _build_ui(self) -> None:
-        """构建应用程序主界面布局.
-
-        包括顶部标题栏、左侧导航侧边栏、右侧内容区域和底部状态栏，
-        并默认显示仪表盘页面。
-        """
-        # 1. 顶部青绿色横幅
-        header = tk.Frame(self.win, bg=TEAL_COLOR, height=60)
-        header.pack(fill="x")
-        header.pack_propagate(False)
-        tk.Label(
-            header,
-            text="🎓 学生成绩管理系统",
-            font=("微软雅黑", 16, "bold"),
-            fg="white",
-            bg=TEAL_COLOR,
-        ).pack(side="left", padx=20, pady=12)
-
-        # 右侧用户信息 + 退出登录按钮
-        user_frame = tk.Frame(header, bg=TEAL_COLOR)
-        user_frame.pack(side="right", padx=20, pady=12)
-
-        username = (
-            self.user_info.get("username", "管理员")
-            if hasattr(self, "user_info")
-            else "管理员"
-        )
-        tk.Label(
-            user_frame,
-            text=f"👤 {username}",
-            font=("微软雅黑", 11),
-            fg="white",
-            bg=TEAL_COLOR,
-        ).pack(side="left", padx=(0, 15))
-
-        tk.Button(
-            user_frame,
-            text="退出登录",
-            font=("微软雅黑", 10),
-            bg="white",
-            fg=TEAL_COLOR,
-            activebackground="#E6F7F0",
-            activeforeground=TEAL_COLOR,
-            relief="flat",
-            cursor="hand2",
-            command=self._logout,
-            padx=12,
-            pady=4,
-        ).pack(side="left")
-
-        # 2. 主容器：左侧菜单 + 右侧内容
-        main_container = tk.Frame(self.win, bg=COLORS["bg"])
-        main_container.pack(fill="both", expand=True)
-
-        # ========== 美化后左侧侧边栏 ==========
-        sidebar = tk.Frame(main_container, width=200, bg="#0F766E")
-        sidebar.pack(side="left", fill="y")
-        sidebar.pack_propagate(False)
-
-        # 侧边栏顶部头像
-        admin_data = self.dm.get_admin()
-        avatar_path = admin_data.get("avatar", "")
-        avatar_frame = tk.Frame(sidebar, bg="#0F766E", height=80)
-        avatar_frame.pack(fill="x", pady=(15, 5))
-        avatar_frame.pack_propagate(False)
-        try:
-            self.sidebar_avatar_label = tk.Label(avatar_frame, bg="#0F766E")
-            self.sidebar_avatar_label.pack(pady=5)
-            load_avatar(self.sidebar_avatar_label, avatar_path, size=(50, 50))
-        except Exception:
-            tk.Label(
-                avatar_frame, text="👤", font=("微软雅黑", 28), bg="#0F766E", fg="white"
-            ).pack(pady=5)
-        tk.Label(
-            avatar_frame,
-            text=admin_data.get("name", "管理员"),
-            font=("微软雅黑", 11, "bold"),
-            fg="white",
-            bg="#0F766E",
-        ).pack()
-
-        # 右侧内容区域（保留不变）
-        self.content_area = tk.Frame(main_container, bg="white")
-        self.content_area.pack(side="right", fill="both", expand=True)
-
-        # 页面映射（功能完全不变）
+        # 页面映射
         self.page_builders = {
             "📊 仪表盘": self._build_dashboard_page,
             "📝 录入": self._build_input_page,
             "📥 导入与导出": self._build_excel_page,
+            "🏫 班级": self._build_class_page,
             "📁 管理": self._build_manage_page,
             "📊 分析": self._build_analysis_page,
             "👤 账号管理": self._build_account_page,
@@ -314,139 +157,33 @@ class App:
             "⚙️ 系统设置": self._build_settings_page,
         }
 
-        self.nav_buttons = []
+        self._build_ui()
+        self.win.protocol("WM_DELETE_WINDOW", self._on_close)
+        logger.info("应用程序初始化完成")
 
-        # -------------- 1. 先单独放【仪表盘】--------------
-        idx = 0
-        text, builder = list(self.page_builders.items())[idx]
+    def _get_window_title(self) -> str:
+        """返回主窗口标题."""
+        return WINDOW_CONFIG["title"]
 
-        def cmd(b=builder, btn_idx=idx):
-            """命令执行入口."""
-            self._switch_page(b)
-            self._set_active_button(btn_idx)
-            self._set_active_button(btn_idx)
+    def _get_header_title(self) -> str:
+        """返回顶部横幅标题文本."""
+        return "🎓 学生成绩管理系统"
 
-        btn = ttk.Button(sidebar, text=text, style="Sidebar.TButton", command=cmd)
-        # 仪表盘：左右留一点边，上下不要pady，避免多余空隙
-        btn.pack(fill="x", padx=15, ipady=5)
-        self.nav_buttons.append(btn)
+    def _get_user_display_name(self) -> str:
+        """返回右上角显示的用户名称."""
+        return self.user_info.get("username", "管理员")
 
-        # -------------- 2. 只在这里加空隙（仪表盘 ↔ 录入）--------------
-        # 高度你可以改，比如 20、25、30
-        spacer = tk.Frame(sidebar, height=20, bg="#0F766E")
-        spacer.pack(fill="x")
+    def _get_avatar_data(self) -> dict:
+        """返回管理员头像数据."""
+        admin = self.dm.get_admin() or {}
+        return {
+            "name": admin.get("name", "管理员"),
+            "avatar": admin.get("avatar", ""),
+        }
 
-        # -------------- 3. 录入及以下：紧挨着，无空隙 --------------
-        for idx, (text, builder) in enumerate(
-            list(self.page_builders.items())[1:], start=1
-        ):
-
-            def cmd(b=builder, btn_idx=idx):
-                """命令执行入口."""
-                self._switch_page(b)
-                self._set_active_button(btn_idx)
-
-            btn = tk.Label(
-                sidebar,
-                text=text,
-                font=("微软雅黑", 12),
-                bg="#f8f9fa",
-                fg="#495057",
-                cursor="hand2",
-            )
-            btn.bind(
-                "<Button-1>",
-                lambda e, b=builder, i=idx: (
-                    self._switch_page(b),
-                    self._set_active_button(i),
-                ),
-            )
-
-            btn.pack(fill="x", padx=15, ipady=8)
-            btn.pack(fill="x", padx=15, ipady=5)
-            self.nav_buttons.append(btn)
-
-        # 默认选中第一个【仪表盘】按钮
-        if self.nav_buttons:
-            self.nav_buttons[0].configure(style="Sidebar.Active.TButton")
-
-        # 默认显示仪表盘
-        self._switch_page(self._build_dashboard_page)
-
-        # 5. 状态栏（保留）
-        self._build_status_bar()
-
-    def _switch_page(self, builder_func) -> None:
-        """切换右侧内容区域为指定页面.
-
-        Args:
-            builder_func: 页面构建方法，接收父容器 Frame 作为参数。
-        """
-        for widget in self.content_area.winfo_children():
-            widget.destroy()
-        page_frame = tk.Frame(self.content_area, bg="white")
-        page_frame.pack(fill="both", expand=True, padx=10, pady=10)
-        builder_func(page_frame)
-
-    def _set_active_button(self, active_idx: int) -> None:
-        """切换导航按钮选中状态.
-
-        Args:
-            active_idx: 当前选中按钮的索引位置。
-        """
-        for idx, btn in enumerate(self.nav_buttons):
-            if idx == active_idx:
-                if idx == 0:
-                    btn.configure(style="Sidebar.Active.TButton")
-                else:
-                    btn.configure(
-                        font=("微软雅黑", 12, "bold"),
-                        fg=TEAL_COLOR,
-                        bg="#e9ecef",
-                    )
-            else:
-                if idx == 0:
-                    btn.configure(style="Sidebar.TButton")
-                else:
-                    btn.configure(
-                        font=("微软雅黑", 12),
-                        fg="#495057",
-                        bg="#f8f9fa",
-                    )
-
-    def _build_status_bar(self) -> None:
-        """构建底部状态栏，显示提示信息、数据统计和实时时钟."""
-        bar = tk.Frame(self.win, bg="#E2E8F0", height=60)
-        bar.pack(fill="x", side="bottom")
-        bar.pack_propagate(False)
-
-        self.status: tk.StringVar = tk.StringVar(value="就绪")
-        status_label = tk.Label(
-            bar, textvariable=self.status, font=("微软雅黑", 9), bg="#E2E8F0"
-        )
-        status_label.pack(side="left", padx=12)
-
-        self.clock: tk.StringVar = tk.StringVar()
-        clock_label = tk.Label(
-            bar, textvariable=self.clock, font=("微软雅黑", 9), bg="#E2E8F0"
-        )
-        clock_label.pack(side="right", padx=12)
-
-        # 已删除：备份和恢复按钮
-
-        self._update_clock()
-        self._update_status()
-
-    def _update_status(self) -> None:
-        """更新状态栏为当前学生和班级数量统计."""
-        self.status.set(
-            f"  学生 {len(self.dm.students)} 人 | 班级 {len(self.dm.classes)} 个"
-        )
-
-    def _update_clock(self) -> None:
-        """更新时钟标签为当前日期时间."""
-        self.clock.set(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        self.win.after(1000, self._update_clock)
+    def _save_avatar(self, path: str) -> None:
+        """保存管理员头像路径."""
+        self.dm.update_admin_profile(avatar=path)
 
     # ========== 仪表盘页面（卡片风格） ==========
 
@@ -2042,6 +1779,8 @@ class App:
         vsb.pack(side="right", fill="y")
         hsb.pack(side="bottom", fill="x")
 
+        self._notice_tree.tag_configure("odd", background="#F8FAFC")
+        self._notice_tree.tag_configure("even", background="#FFFFFF")
         self._notice_tree.bind("<Double-1>", self._notice_double_click)
 
         self._refresh_notice_tree()
@@ -2054,7 +1793,8 @@ class App:
             self._notice_tree.delete(item)
 
         notices = self.dm.get_notices()
-        for notice in notices:
+        for idx, notice in enumerate(notices):
+            tag = "odd" if idx % 2 == 0 else "even"
             self._notice_tree.insert(
                 "",
                 "end",
@@ -2066,6 +1806,7 @@ class App:
                     notice.get("target", "all"),
                     notice.get("date", ""),
                 ),
+                tags=(tag,),
             )
 
     def _notice_add(self):
@@ -2711,16 +2452,6 @@ class App:
 
     # ========== 导入导出与管理页面（从教师端迁移） ==========
 
-    def _show_status(self, text: str, level: str = "info") -> None:
-        """在底部状态栏显示带图标的提示信息.
-
-        Args:
-            text: 要显示的提示文本。
-            level: 提示级别，可选值为 "info"、"ok"、"warn"、"err"。
-        """
-        icons = {"info": "ℹ️", "ok": "✅", "warn": "⚠️", "err": "❌"}
-        self.status.set(f"  {icons.get(level, 'ℹ️')}  {text}")
-
     def _check_excel_available(self) -> bool:
         """检查 Excel 相关依赖是否已安装.
 
@@ -2747,41 +2478,8 @@ class App:
             self.in_tree.delete(*self.in_tree.get_children())
             for _ in range(5):
                 self._input_add_row()
-
-    def _calc_subject_widths(
-        self, subjects: list[str], min_width: int = 72
-    ) -> list[int]:
-        """计算科目列宽度."""
-        return [max(min_width, len(s) * 14) for s in subjects]
-
-    def _create_treeview(
-        self,
-        parent: tk.Frame,
-        columns: list[str],
-        widths: list[int],
-        height: int = 14,
-        pack_frame: bool = True,
-    ) -> ttk.Treeview:
-        """创建并配置 Treeview 表格控件."""
-        frame = tk.Frame(parent, bg="white")
-        tree = ttk.Treeview(frame, columns=columns, show="headings", height=height)
-        v_scroll = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
-        h_scroll = ttk.Scrollbar(frame, orient="horizontal", command=tree.xview)
-        tree.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
-
-        for col, width in zip(columns, widths):
-            tree.heading(col, text=col)
-            tree.column(col, width=width, anchor="center")
-
-        v_scroll.pack(side="right", fill="y")
-        h_scroll.pack(side="bottom", fill="x")
-        tree.pack(fill="both", expand=True)
-        if pack_frame:
-            frame.pack(fill="both", expand=True, pady=(15, 0))
-
-        tree.tag_configure("odd", background="#F8FAFC")
-        tree.tag_configure("even", background="#FFFFFF")
-        return tree
+        if hasattr(self, "cl_tree"):
+            self._refresh_class_tree()
 
     def _build_input_page(self, parent: tk.Frame) -> None:
         """构建成绩录入页面，提供期号、日期、科目成绩输入和批量提交功能.
@@ -3140,263 +2838,271 @@ class App:
         """
         self._show_export_dialog("csv")
 
-    def _show_export_dialog(self, export_type: str) -> None:
-        """显示导出选项对话框（全部或指定班级）.
+    # ========== 班级管理页面 ==========
+
+    def _build_class_page(self, parent: tk.Frame) -> None:
+        """构建班级管理页面，支持添加、删除、查看班级详情和右键菜单操作.
 
         Args:
-            export_type: 导出类型，取值为 "excel" 或 "csv"。
-
-        弹窗固定在主窗口左上区域，用户可选择导出全部班级，
-        或从下拉框中选择特定班级进行导出。
+            parent: 父容器 Frame，用于放置班级管理页面内容。
         """
+        tk.Label(
+            parent,
+            text="🏫 班级管理",
+            font=("微软雅黑", 14, "bold"),
+            bg="white",
+        ).pack(pady=4)
+
+        btn_frame = tk.Frame(parent, bg="white")
+        btn_frame.pack(pady=(10, 15))
+        ttk.Button(
+            btn_frame,
+            text="➕ 添加班级",
+            style="success.TButton",
+            command=self._class_add,
+        ).pack(side="left", padx=4)
+        ttk.Button(
+            btn_frame,
+            text="🔄 刷新",
+            style="primary.TButton",
+            command=self._refresh_class_tree,
+        ).pack(side="left", padx=4)
+        ttk.Button(
+            btn_frame,
+            text="🗑️ 删除班级",
+            style="danger.TButton",
+            command=self._class_delete_selected,
+        ).pack(side="left", padx=4)
+        columns = ["班级名称", "学生人数", "平均分", "最高分", "最低分", "操作"]
+        widths = [150, 80, 80, 80, 80, 120]
+
+        frame = tk.Frame(parent, bg="white")
+        frame.pack(pady=(0, 10), fill="both", expand=True)
+
+        self.cl_tree = ttk.Treeview(frame, columns=columns, show="headings", height=15)
+
+        v_scroll = ttk.Scrollbar(frame, orient="vertical", command=self.cl_tree.yview)
+        h_scroll = ttk.Scrollbar(frame, orient="horizontal", command=self.cl_tree.xview)
+        self.cl_tree.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
+
+        for col, width in zip(columns, widths):
+            self.cl_tree.heading(col, text=col)
+            self.cl_tree.column(col, width=width, anchor="center")
+
+        v_scroll.pack(side="right", fill="y")
+        h_scroll.pack(side="bottom", fill="x")
+        self.cl_tree.pack(fill="both", expand=True)
+
+        self.cl_tree.tag_configure("odd", background="#F8FAFC")
+        self.cl_tree.tag_configure("even", background="#FFFFFF")
+
+        self.cl_tree.bind("<Double-1>", self._class_double_click)
+        self.cl_tree.bind("<Button-3>", self._class_show_context_menu)
+
+        self.cl_context_menu = tk.Menu(self.win, tearoff=0)
+        self.cl_context_menu.add_command(
+            label="查看详情", command=self._class_menu_show_detail
+        )
+        self.cl_context_menu.add_separator()
+        self.cl_context_menu.add_command(
+            label="删除班级", command=self._class_menu_delete, foreground="red"
+        )
+
+        self._refresh_class_tree()
+
+    def _refresh_class_tree(self) -> None:
+        """刷新班级列表表格数据，展示班级统计信息."""
+        if not hasattr(self, "cl_tree") or not self.cl_tree:
+            return
+        self.cl_tree.delete(*self.cl_tree.get_children())
+
+        classes = self.dm.classes
+
+        if not classes:
+            for i in range(30):
+                tag = "odd" if i % 2 == 0 else "even"
+                empty_vals = ["", "", "", "", "", ""]
+                self.cl_tree.insert("", "end", values=empty_vals, tags=(tag,))
+            return
+
+        for idx, cls_name in enumerate(classes):
+            stats = self.dm.get_class_stats(cls_name)
+            base_tag = "odd" if idx % 2 == 0 else "even"
+            if stats:
+                self.cl_tree.insert(
+                    "",
+                    "end",
+                    values=(
+                        cls_name,
+                        stats["count"],
+                        stats["total_avg"],
+                        stats["max_total"],
+                        stats["min_total"],
+                        "查看详情",
+                    ),
+                    tags=(base_tag,),
+                )
+            else:
+                self.cl_tree.insert(
+                    "",
+                    "end",
+                    values=(cls_name, 0, "-", "-", "-", "查看详情"),
+                    tags=(base_tag,),
+                )
+
+    def _class_add(self) -> None:
+        """添加班级."""
+        name = simpledialog.askstring("添加班级", "请输入班级名称：")
+        if not name:
+            return
+        name = name.strip()
+        if not name:
+            messagebox.showwarning("提示", "班级名称不能为空")
+            return
+        try:
+            self.dm.add_class(name)
+            self.dm.save()
+            messagebox.showinfo("成功", f"已创建班级「{name}」")
+            self._refresh_class_tree()
+        except Exception as e:
+            messagebox.showerror("错误", str(e))
+
+    def _class_double_click(self, event: tk.Event) -> None:
+        """班级列表双击回调."""
+        row_id = self.cl_tree.identify_row(event.y)
+        col_id = self.cl_tree.identify_column(event.x)
+        if not row_id:
+            return
+        if int(col_id.replace("#", "")) == 6:
+            vals = self.cl_tree.item(row_id, "values")
+            self._class_show_detail(vals[0])
+
+    def _class_show_detail(self, class_name: str) -> None:
+        """显示班级详情."""
+        stats = self.dm.get_class_stats(class_name)
+        if not stats:
+            return
         dialog = tk.Toplevel(self.win)
-        dialog.title("导出选项")
-        dialog.geometry("380x230")
-        dialog.grab_set()
-        dialog.transient(self.win)
+        dialog.title(f"班级详情 - {class_name}")
+        dialog.geometry("700x500")
 
         self.win.update_idletasks()
         win_x = self.win.winfo_x()
         win_y = self.win.winfo_y()
         dialog.geometry(f"+{win_x + 210}+{win_y + 200}")
-
-        tk.Label(
-            dialog,
-            text="请选择导出范围",
-            font=("微软雅黑", 12, "bold"),
-        ).pack(pady=12)
-
-        selected_class = tk.StringVar(value="全部")
-
-        tk.Radiobutton(
-            dialog,
-            text="导出全部班级",
-            variable=selected_class,
-            value="全部",
-            font=("微软雅黑", 13),
-        ).pack(anchor="w", padx=40, pady=4)
-
-        class_frame = tk.Frame(dialog)
-        class_frame.pack(anchor="w", padx=40, pady=4, fill="x")
-        tk.Radiobutton(
-            class_frame,
-            text="导出指定班级：",
-            variable=selected_class,
-            value="指定",
-            font=("微软雅黑", 13),
-        ).pack(side="left")
-
-        classes = self.dm.classes
-        class_combo = ttk.Combobox(
-            class_frame,
-            values=classes if classes else ["无班级"],
-            state="readonly",
-            width=15,
+        tk.Label(dialog, text=f"🏫 {class_name}", font=("微软雅黑", 14, "bold")).pack(
+            pady=8
         )
-        if classes:
-            class_combo.current(0)
-        class_combo.pack(side="left", padx=5)
-
-        def do_export() -> None:
-            dialog.destroy()
-            class_name = ""
-            if selected_class.get() == "指定":
-                class_name = class_combo.get()
-                if not class_name or class_name == "无班级":
-                    messagebox.showwarning("提示", "请先选择一个班级")
-                    return
-
-            if export_type == "excel":
-                self._do_export_excel(class_name)
-            else:
-                self._do_export_csv(class_name)
-
-        btn_frame = tk.Frame(dialog)
-        btn_frame.pack(pady=15)
-        ttk.Button(btn_frame, text="导出", command=do_export).pack(side="left", padx=8)
-        ttk.Button(btn_frame, text="取消", command=dialog.destroy).pack(
-            side="left", padx=8
-        )
-
-    def _do_export_excel(self, class_name: str = "") -> None:
-        """执行 Excel 导出（可选按班级过滤）.
-
-        Args:
-            class_name: 要导出的班级名称。空字符串表示导出全部班级。
-
-        弹出保存对话框，根据参数决定导出全部数据或仅导出指定班级，
-        导出成功后更新状态栏提示。
-        """
-        filepath = filedialog.asksaveasfilename(
-            defaultextension=".xlsx",
-            filetypes=[("Excel", "*.xlsx")],
-            initialfile=get_excel_filename(),
-        )
-        if not filepath:
-            return
-
-        if not class_name:
-            if export_to_excel(filepath, self.dm):
-                self._show_status("Excel 导出成功", "ok")
-                logger.info("Excel 导出成功: %s", filepath)
-            else:
-                logger.error("Excel 导出失败: %s", filepath)
-                messagebox.showerror("错误", "导出失败")
-        else:
-            if self._export_excel_by_class(filepath, class_name):
-                self._show_status(f"Excel 导出成功（{class_name}）", "ok")
-                logger.info("Excel 导出成功（%s）: %s", class_name, filepath)
-            else:
-                logger.error("Excel 导出失败: %s", filepath)
-                messagebox.showerror("错误", "导出失败")
-
-    def _do_export_csv(self, class_name: str = "") -> None:
-        """执行 CSV 导出（可选按班级过滤）.
-
-        Args:
-            class_name: 要导出的班级名称。空字符串表示导出全部班级。
-
-        弹出保存对话框，根据参数决定导出全部数据或仅导出指定班级，
-        导出成功后更新状态栏提示。
-        """
-        filepath = filedialog.asksaveasfilename(
-            defaultextension=".csv",
-            filetypes=[("CSV", "*.csv")],
-            initialfile=get_csv_filename(),
-        )
-        if not filepath:
-            return
-
-        if not class_name:
-            if export_to_csv(filepath, self.dm):
-                self._show_status("CSV 导出成功", "ok")
-                logger.info("CSV 导出成功: %s", filepath)
-            else:
-                logger.error("CSV 导出失败: %s", filepath)
-                messagebox.showerror("错误", "导出失败")
-        else:
-            if self._export_csv_by_class(filepath, class_name):
-                self._show_status(f"CSV 导出成功（{class_name}）", "ok")
-                logger.info("CSV 导出成功（%s）: %s", class_name, filepath)
-            else:
-                logger.error("CSV 导出失败: %s", filepath)
-                messagebox.showerror("错误", "导出失败")
-
-    def _export_excel_by_class(self, filepath: str, class_name: str) -> bool:
-        """按班级导出 Excel.
-
-        Args:
-            filepath: 导出的文件保存路径。
-            class_name: 要过滤并导出的班级名称。
-
-        Returns:
-            True 表示导出成功，False 表示导出失败。
-
-        使用 openpyxl 创建新工作簿，仅包含指定班级的学生，
-        按总分降序排列，并生成排名、等级等统计信息。
-        """
-        try:
-            import openpyxl
-
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            if ws is None:
-                return False
-            ws.title = f"{class_name}成绩表"
-
-            subjects = list(self.dm.subjects)
-            ws.append(
-                [
-                    "排名",
-                    "学号",
-                    "姓名",
-                    "班级",
-                ]
-                + subjects
-                + ["总分", "平均分", "等级"]
+        info_frame = tk.Frame(dialog, bg="#F0F9FF", bd=1, relief="solid")
+        info_frame.pack(fill="x", padx=10, pady=5)
+        info_items = [
+            ("班级人数", f"{stats['count']} 人"),
+            ("班级平均分", f"{stats['total_avg']:.1f} 分"),
+            ("最高总分", f"{stats['max_total']:.1f} 分"),
+            ("最低总分", f"{stats['min_total']:.1f} 分"),
+        ]
+        for label, value in info_items:
+            label_widget = tk.Label(
+                info_frame,
+                text=f"{label}：{value}",
+                font=("微软雅黑", 10),
+                bg="#F0F9FF",
             )
-
-            class_students = self.dm.get_students_by_class(class_name)
-            class_students.sort(
-                key=lambda x: (
-                    self.dm.stats(x[0]).get("total", 0) if self.dm.stats(x[0]) else 0
+            label_widget.pack(side="left", padx=15, pady=8)
+        columns = ["排名", "学号", "姓名", "总分", "平均分"]
+        widths = [60, 120, 100, 100, 100]
+        tree = ttk.Treeview(dialog, columns=columns, show="headings", height=15)
+        for col, width in zip(columns, widths):
+            tree.heading(col, text=col)
+            tree.column(col, width=width, anchor="center")
+        tree.pack(fill="both", expand=True, padx=10, pady=10)
+        tree.tag_configure("odd", background="#F8FAFC")
+        tree.tag_configure("even", background="#FFFFFF")
+        tree.tag_configure("fail", foreground="#EF4444")
+        for idx, student in enumerate(stats["students"]):
+            base_tag = "odd" if idx % 2 == 0 else "even"
+            fail_tag = "fail" if student["avg"] < 60 else ""
+            tags = (base_tag,)
+            if fail_tag:
+                tags = (base_tag, fail_tag)
+            tree.insert(
+                "",
+                "end",
+                values=(
+                    student["rank"],
+                    student["sid"],
+                    student["name"],
+                    student["total"],
+                    student["avg"],
                 ),
-                reverse=True,
+                tags=tags,
             )
 
-            for rank, (sid, stu) in enumerate(class_students, 1):
-                st = self.dm.stats(sid)
-                if st is None:
-                    continue
-                avg = st["avg"]
-                if avg >= 90:
-                    level = "优秀"
-                elif avg >= 75:
-                    level = "良好"
-                elif avg >= 60:
-                    level = "及格"
-                else:
-                    level = "不及格"
-                row_data = (
-                    [rank, sid, stu["name"], class_name]
-                    + [stu["scores"].get(s, "-") for s in subjects]
-                    + [st["total"], st["avg"], level]
-                )
-                ws.append(row_data)
+    def _class_show_context_menu(self, event: tk.Event) -> None:
+        """显示班级表格的右键菜单."""
+        if not hasattr(self, "cl_context_menu"):
+            return
+        row_id = self.cl_tree.identify_row(event.y)
+        if not row_id:
+            return
+        self.cl_tree.selection_set(row_id)
+        self._selected_class_row = row_id
+        self.cl_context_menu.post(event.x_root, event.y_root)
 
-            wb.save(filepath)
-            return True
-        except Exception:
-            return False
+    def _class_menu_show_detail(self) -> None:
+        """右键菜单：查看班级详情."""
+        if hasattr(self, "_selected_class_row"):
+            vals = self.cl_tree.item(self._selected_class_row, "values")
+            if vals:
+                self._class_show_detail(vals[0])
 
-    def _export_csv_by_class(self, filepath: str, class_name: str) -> bool:
-        """按班级导出 CSV.
+    def _class_menu_delete(self) -> None:
+        """右键菜单：删除班级."""
+        if hasattr(self, "_selected_class_row"):
+            vals = self.cl_tree.item(self._selected_class_row, "values")
+            if vals:
+                self._class_do_delete(vals[0])
 
-        Args:
-            filepath: 导出的文件保存路径。
-            class_name: 要过滤并导出的班级名称。
+    def _class_delete_selected(self) -> None:
+        """删除按钮：删除选中的班级."""
+        selected = self.cl_tree.selection()
+        if not selected:
+            messagebox.showwarning("提示", "请先选中一个班级")
+            return
+        vals = self.cl_tree.item(selected[0], "values")
+        if not vals or not vals[0]:
+            messagebox.showwarning("提示", "请先选中一个班级")
+            return
+        self._class_do_delete(vals[0])
 
-        Returns:
-            True 表示导出成功，False 表示导出失败。
-
-        使用 csv 模块写入 UTF-8-SIG 编码文件，仅包含指定班级的学生，
-        按总分降序排列，并生成排名等统计信息。
-        """
+    def _class_do_delete(self, class_name: str) -> None:
+        """执行删除班级操作（将该班级所有学生的班级字段清空）."""
+        if not class_name:
+            return
+        if not messagebox.askyesno(
+            "确认删除",
+            f"确定要删除班级「{class_name}」吗？\n\n"
+            f"该班级所有学生的班级信息将被清空，学生数据不会被删除。",
+        ):
+            return
         try:
-            import csv
-
-            with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
-                writer = csv.writer(f)
-                subjects = list(self.dm.subjects)
-                header = (
-                    ["排名", "学号", "姓名", "班级"] + subjects + ["总分", "平均分"]
-                )
-                writer.writerow(header)
-
-                class_students = self.dm.get_students_by_class(class_name)
-                class_students.sort(
-                    key=lambda x: (
-                        self.dm.stats(x[0]).get("total", 0)
-                        if self.dm.stats(x[0])
-                        else 0
-                    ),
-                    reverse=True,
-                )
-
-                for rank, (sid, stu) in enumerate(class_students, 1):
-                    st = self.dm.stats(sid)
-                    if st is None:
-                        continue
-                    row_data = (
-                        [rank, sid, stu["name"], class_name]
-                        + [stu["scores"].get(s, "-") for s in subjects]
-                        + [st["total"], st["avg"]]
-                    )
-                    writer.writerow(row_data)
-
-            return True
-        except Exception:
-            return False
+            count = 0
+            for student in self.dm.data["students"].values():
+                if student.get("class") == class_name:
+                    student["class"] = ""
+                    count += 1
+            # 从独立班级列表中移除
+            class_list = self.dm.data.get("classes", [])
+            if class_name in class_list:
+                class_list.remove(class_name)
+            self.dm.save()
+            messagebox.showinfo(
+                "删除成功",
+                f"班级「{class_name}」已删除，共清空 {count} 名学生的班级信息",
+            )
+            self._refresh_class_tree()
+        except Exception as e:
+            messagebox.showerror("错误", f"删除班级失败: {e}")
 
     def _build_manage_page(self, parent: tk.Frame) -> None:
         """构建成绩管理页面，支持成绩过滤、排序、删除和科目管理功能.
@@ -3763,42 +3469,14 @@ class App:
             "确定要删除所有数据并重置系统吗？\n"
             "此操作将删除所有学生、科目和成绩，且不可撤销！",
         ):
-            self.dm.data = {"subjects": [], "students": {}, "history": []}
+            # 只清空学生、科目和成绩历史，保留课程、教师、
+            # 通知等基础数据
+            self.dm.data["students"] = {}
+            self.dm.data["subjects"] = []
+            self.dm.data["history"] = []
             self.dm.save()
 
-            if hasattr(self, "mg_tree"):
-                parent = self.mg_tree.master
-                self.mg_tree.destroy()
-
-                new_subjects = self.dm.subjects
-                columns = ["学号", "姓名", "班级"] + new_subjects + ["总分", "平均分"]
-                base_widths = [110, 90, 90]
-                widths = (
-                    base_widths + self._calc_subject_widths(new_subjects) + [80, 80]
-                )
-
-                self.mg_tree = ttk.Treeview(
-                    parent, columns=columns, show="headings", height=18
-                )
-                self.mg_tree.tag_configure("fail", foreground="#EF4444")
-                self.mg_tree.tag_configure("warn", foreground="#F59E0B")
-                self.mg_tree.tag_configure("good", foreground="#10B981")
-                self.mg_tree.tag_configure("empty_all", foreground="#9CA3AF")
-                self.mg_tree.tag_configure("odd", background="#F8FAFC")
-                self.mg_tree.tag_configure("even", background="#FFFFFF")
-                self.mg_tree.bind("<Double-1>", self._manage_cell_double_click)
-
-                for col, width in zip(columns, widths):
-                    self.mg_tree.heading(col, text=col)
-                    self.mg_tree.column(col, width=width, anchor="center")
-
-                for col in columns:
-                    self.mg_tree.heading(
-                        col,
-                        command=lambda c=col: self._manage_sort_tree(c),
-                    )
-
-                self.mg_tree.pack(fill="both", expand=True)
+            self._rebuild_mg_tree()
 
             self._refresh_all_pages()
             self._update_status()

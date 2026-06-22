@@ -17,6 +17,7 @@
 import os
 import shutil
 import tkinter as tk
+import uuid
 from tkinter import filedialog
 from typing import Any, Callable, Optional
 
@@ -136,7 +137,6 @@ def change_avatar(
         ext = os.path.splitext(file_path)[1].lower()
         if ext not in (".png", ".jpg", ".jpeg", ".gif", ".bmp"):
             ext = ".png"
-        import uuid
 
         # 生成唯一文件名，避免覆盖
         new_name = f"{uuid.uuid4().hex}{ext}"
