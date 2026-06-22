@@ -28,7 +28,15 @@ import tkinter as tk  # noqa: E402
 from tkinter import messagebox, Canvas  # noqa: E402
 
 import customtkinter as ctk  # noqa: E402
-from PIL import Image, ImageTk  # noqa: E402
+
+# 尝试导入 Pillow，若缺失则设置标志并继续运行
+PIL_OK: bool = False
+try:
+    from PIL import Image, ImageTk  # noqa: E402
+
+    PIL_OK = True
+except ImportError:
+    pass
 
 from modules.data_manager import DataManager  # noqa: E402
 
@@ -149,20 +157,21 @@ class LoginWindow(ctk.CTk):
             self.role_buttons[role_key] = btn
 
         # 标题 Logo
-        from PIL import Image
-
         logo_path = os.path.join(project_root, "img", "横向logo.png")
-        # 初始化 CTkImage（适配深浅主题，统一尺寸）
-        if os.path.exists(logo_path):
+        if PIL_OK and os.path.exists(logo_path):
             logo_img = ctk.CTkImage(
                 light_image=Image.open(logo_path),
                 dark_image=Image.open(logo_path),
                 size=(180, 45),
             )
+            self.title_label = ctk.CTkLabel(self.card, image=logo_img, text="")
         else:
-            logo_img = None
-
-        self.title_label = ctk.CTkLabel(self.card, image=logo_img, text="")
+            self.title_label = ctk.CTkLabel(
+                self.card,
+                text="学生成绩管理系统",
+                font=("微软雅黑", 18, "bold"),
+                text_color="#2C3E50",
+            )
         self.title_label.pack(pady=(10, 20))
 
         # 用户名/工号/学号输入框
@@ -210,11 +219,15 @@ class LoginWindow(ctk.CTk):
 
     def _preload_background(self):
         """预加载背景图片，避免显示时卡顿."""
+        if not PIL_OK:
+            self.bg_image = None
+            return
         try:
             if os.path.exists(self.image_path):
                 self.bg_image = Image.open(self.image_path)
         except Exception as e:
             print(f"图片加载失败: {e}")
+            self.bg_image = None
 
     def _prepare_and_show(self):
         """准备背景、文字和卡片布局，然后显示窗口.
@@ -231,7 +244,7 @@ class LoginWindow(ctk.CTk):
         self.canvas.delete("all")
 
         # 绘制全屏背景
-        if self.bg_image:
+        if PIL_OK and self.bg_image:
             resized_img = self.bg_image.resize((w, h), Image.Resampling.LANCZOS)
             self.photo_image = ImageTk.PhotoImage(resized_img)
             self.canvas.create_image(0, 0, anchor="nw", image=self.photo_image)

@@ -168,24 +168,31 @@ class ExcelEmptyError(ExcelHandlerError):
 
 
 # ------------------------------------------------------------------
-# Excel 库可用性检查
+# Excel 库可用性检查（分离读写依赖，防崩溃）
 # ------------------------------------------------------------------
-# 运行时检测 openpyxl 和 xlrd 的安装情况，设置全局标志 EX_OK。
-
-EX_OK: bool = False
+OPENPYXL_OK = False
+XLDR_OK = False
 try:
     import openpyxl  # noqa: F401
 
-    EX_OK = True
+    OPENPYXL_OK = True
     logger.debug("openpyxl 导入成功")
 except ImportError:
-    try:
-        import xlrd  # noqa: F401
+    pass
 
-        EX_OK = True
-        logger.debug("xlrd 导入成功")
-    except ImportError:
-        logger.warning("Excel 处理库未安装，请执行: pip install openpyxl")
+try:
+    import xlrd  # noqa: F401
+
+    XLDR_OK = True
+    logger.debug("xlrd 导入成功")
+except ImportError:
+    pass
+
+# 只要有一个能读，就算可用（用于 import_from_excel）
+EX_OK = OPENPYXL_OK or XLDR_OK
+
+if not EX_OK:
+    logger.warning("未检测到 Excel 处理库，请执行: pip install openpyxl")
 
 
 def is_excel_available() -> bool:
@@ -237,8 +244,8 @@ def create_template(filepath: str, subjects: list[str]) -> bool:
     Returns:
         True 表示创建成功，False 表示失败（如库未安装、路径无效等）。
     """
-    if not EX_OK:
-        logger.error("创建模板失败: Excel 库未安装")
+    if not OPENPYXL_OK:
+        logger.error("创建模板失败: openpyxl 未安装")
         return False
 
     try:
@@ -251,8 +258,6 @@ def create_template(filepath: str, subjects: list[str]) -> bool:
         logger.warning("创建模板时科目列表为空")
 
     try:
-        import openpyxl
-
         wb = openpyxl.Workbook()
         ws = wb.active
         if ws is None:
@@ -317,8 +322,6 @@ def import_from_excel(filepath: str, data_manager: Any) -> Tuple[int, Optional[s
         # 根据扩展名选择对应的读取库
         if filepath.lower().endswith(".xlsx"):
             try:
-                import openpyxl
-
                 wb = openpyxl.load_workbook(filepath, data_only=True, read_only=True)
                 ws = wb.active
                 if ws is None:
@@ -334,8 +337,6 @@ def import_from_excel(filepath: str, data_manager: Any) -> Tuple[int, Optional[s
                 return (0, f"文件格式不正确: {e}")
         else:
             try:
-                import xlrd
-
                 rb = xlrd.open_workbook(filepath)
                 sh = rb.sheet_by_index(0)
                 # 将每一行转换为字符串列表，空单元格统一为空字符串
@@ -506,8 +507,8 @@ def export_to_excel(filepath: str, data_manager: Any) -> bool:
     Returns:
         True 表示导出成功，False 表示失败。
     """
-    if not EX_OK:
-        logger.error("导出 Excel 失败: Excel 库未安装")
+    if not OPENPYXL_OK:
+        logger.error("导出 Excel 失败: openpyxl 未安装")
         return False
 
     try:
@@ -517,8 +518,6 @@ def export_to_excel(filepath: str, data_manager: Any) -> bool:
         return False
 
     try:
-        import openpyxl
-
         wb = openpyxl.Workbook()
         ws = wb.active
         if ws is None:
