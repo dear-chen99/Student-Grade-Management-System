@@ -31,6 +31,7 @@ import json
 import logging
 import os
 import shutil
+import uuid
 from typing import Any, Optional
 
 # ------------------------------------------------------------------
@@ -147,18 +148,19 @@ class StudentNotFoundError(DataManagerError):
 
 
 class DuplicateStudentError(DataManagerError):
-    """学号重复错误.
+    """学号或标识重复错误.
 
     在添加学生或班级时，如果标识已存在则抛出。
     """
 
-    def __init__(self, student_id: str) -> None:
-        """初始化学号重复错误.
+    def __init__(self, identifier: str, label: str = "学号") -> None:
+        """初始化重复错误.
 
         Args:
-            student_id: 已存在的学号。
+            identifier: 已存在的标识（学号、班级名等）。
+            label: 标识类型名称，默认为"学号"。
         """
-        super().__init__(f"学号 '{student_id}' 已存在")
+        super().__init__(f"{label} '{identifier}' 已存在")
 
 
 class SubjectNotFoundError(DataManagerError):
@@ -535,6 +537,11 @@ class DataManager:
         if not isinstance(self.data["schedule_history"], list):
             logger.warning("schedule_history 字段不是列表，已自动修复")
             self.data["schedule_history"] = []
+        if "classes" not in self.data:
+            self.data["classes"] = []
+        if not isinstance(self.data["classes"], list):
+            logger.warning("classes 字段不是列表，已自动修复")
+            self.data["classes"] = []
 
         self._migrate_student_ids()
 
@@ -723,6 +730,7 @@ class DataManager:
             "teachers": {},
             "courses": {},
             "attendance": {},
+            "classes": [],
             "notices": [],
             "schedules": [],
             "schedule_history": [],
@@ -1175,19 +1183,26 @@ class DataManager:
         }
 
     def ranking(
-        self, by: str = "total", subject: Optional[str] = None
+        self,
+        by: str = "total",
+        subject: Optional[str] = None,
+        student_ids: Optional[set[str]] = None,
     ) -> list[dict[str, Any]]:
         """获取学生排名.
 
         Args:
             by: 排序依据，可选 "total"(总分) / "avg"(平均分) / "subject"(科目)。
             subject: 当 by="subject" 时指定科目名称。
+            student_ids: 可选的学生学号集合，仅统计该集合内的学生。
 
         Returns:
             排序后的学生列表，包含排名信息。无数据时返回空列表。
         """
         result: list[dict[str, Any]] = []
-        for sid in self.data["students"]:
+        students = self.data["students"]
+        if student_ids is not None:
+            students = {sid: students[sid] for sid in student_ids if sid in students}
+        for sid in students:
             student_stats = self.stats(sid)
             if student_stats is None:
                 continue
@@ -1216,11 +1231,14 @@ class DataManager:
         """
         return self.analyze_subject(subject)
 
-    def analyze_subject(self, subject: str) -> Optional[dict[str, Any]]:
+    def analyze_subject(
+        self, subject: str, student_ids: Optional[set[str]] = None
+    ) -> Optional[dict[str, Any]]:
         """分析科目成绩统计.
 
         Args:
             subject: 科目名称。
+            student_ids: 可选的学生学号集合，仅统计该集合内的学生。
 
         Returns:
             包含平均分、最高分、最低分、及格率、分布等统计数据的字典；
@@ -1231,7 +1249,10 @@ class DataManager:
             return None
 
         scores: list[float] = []
-        for student in self.data["students"].values():
+        students = self.data["students"]
+        if student_ids is not None:
+            students = {sid: students[sid] for sid in student_ids if sid in students}
+        for student in students.values():
             score = student["scores"].get(subject)
             if score is not None:
                 try:
@@ -1293,37 +1314,34 @@ class DataManager:
 
     @property
     def classes(self) -> list[str]:
-        """获取所有班级列表（排序后）.
-
-        Returns:
-            班级名称列表。
-        """
+        """获取所有班级列表（排序后）. 同时包含有学生的班级和无学生的空班级."""
+        # 1. 从学生信息中提取的班级（存在学生的）
         class_set: set[str] = set()
         for student in self.data["students"].values():
             cls = student.get("class", "")
             if cls:
                 class_set.add(cls)
+
+        # 2. 加入独立创建的班级列表（即使是空班级，列表里也会保留）
+        if "classes" in self.data:
+            class_set.update(self.data["classes"])
+
         return sorted(class_set)
 
     def add_class(self, class_name: str) -> str:
-        """添加班级（兼容旧接口）.
-
-        Args:
-            class_name: 班级名称。
-
-        Returns:
-            规范化后的班级名称。
-
-        Raises:
-            InvalidInputError: 班级名称为空时抛出。
-            DuplicateStudentError: 班级已存在时抛出。
-        """
+        """添加班级（会真正保存到独立班级列表）."""
         class_name = self._validate_class_name(class_name)
 
-        for student in self.data["students"].values():
-            if student.get("class") == class_name:
-                raise DuplicateStudentError(f"班级 '{class_name}' 已存在")
+        # 确保 classes 列表在字典中存在
+        if "classes" not in self.data:
+            self.data["classes"] = []
 
+        # 检查是否已经存在同名班级（无论是否有学生）
+        if class_name in self.data["classes"]:
+            raise DuplicateStudentError(class_name, label="班级")
+
+        # 真正写入列表
+        self.data["classes"].append(class_name)
         return class_name
 
     def get_class_stats(self, class_name: str) -> Optional[dict[str, Any]]:
@@ -2048,8 +2066,6 @@ class DataManager:
         Returns:
             新公告的 ID。
         """
-        import uuid
-
         notice_id = str(uuid.uuid4())[:8]
         notice = {
             "id": notice_id,
