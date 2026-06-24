@@ -16,7 +16,10 @@
 
 import csv
 import datetime
+import logging
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 def export_to_csv(filepath: str, data_manager: Any) -> bool:
@@ -34,7 +37,7 @@ def export_to_csv(filepath: str, data_manager: Any) -> bool:
     """
     try:
         # 使用 utf-8-sig 编码写入 BOM，使 Excel 默认以 UTF-8 打开
-        with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
+        with open(filepath, "w", newline="", encoding="utf-8-sig", errors="replace") as f:
             writer = csv.writer(f)
 
             subjects = data_manager.subjects
@@ -57,18 +60,18 @@ def export_to_csv(filepath: str, data_manager: Any) -> bool:
 
         return True
 
-    except Exception:
-        # CSV 写入失败（如路径不可写、权限不足），返回 False 由调用方处理
+    except Exception as e:
+        logger.warning("CSV导出失败: %s", e, exc_info=True)
         return False
 
 
 def get_default_filename() -> str:
-    """获取默认 CSV 导出文件名（含日期）.
+    """获取默认 CSV 导出文件名（含日期和时间）.
 
     Returns:
-        格式为 "成绩_YYYY-MM-DD.csv" 的文件名。
+        格式为 "成绩_YYYY-MM-DD_HHMMSS.csv" 的文件名。
     """
-    return f"成绩_{datetime.date.today()}.csv"
+    return f"成绩_{datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S')}.csv"
 
 
 def export_statistics(filepath: str, data_manager: Any) -> bool:
@@ -85,7 +88,7 @@ def export_statistics(filepath: str, data_manager: Any) -> bool:
         True 表示导出成功，False 表示失败。
     """
     try:
-        with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
+        with open(filepath, "w", newline="", encoding="utf-8-sig", errors="replace") as f:
             writer = csv.writer(f)
 
             # 总体统计
@@ -117,5 +120,6 @@ def export_statistics(filepath: str, data_manager: Any) -> bool:
 
         return True
 
-    except Exception:
+    except Exception as e:
+        logger.warning("统计数据CSV导出失败: %s", e, exc_info=True)
         return False

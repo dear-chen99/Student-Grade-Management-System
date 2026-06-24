@@ -571,13 +571,13 @@ def export_to_excel(filepath: str, data_manager: Any) -> bool:
 
 
 def get_default_filename(extension: str = "xlsx") -> str:
-    """获取默认导出文件名（含日期）.
+    """获取默认导出文件名（含日期和时间）.
 
     Args:
         extension: 文件扩展名，默认 "xlsx"（可传入 "xls" 等）。
 
     Returns:
-        格式为 "成绩_YYYY-MM-DD.{extension}" 的文件名。
+        格式为 "成绩_YYYY-MM-DD_HHMMSS.{extension}" 的文件名。
     """
     ext = extension.lstrip(".")
-    return f"成绩_{datetime.date.today()}.{ext}"
+    return f"成绩_{datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S')}.{ext}"
