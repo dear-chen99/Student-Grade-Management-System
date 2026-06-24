@@ -11,6 +11,7 @@ Attributes:
     ctk: customtkinter 模块实例，已全局设置主题为 Light + blue。
 """
 
+import logging
 import os
 import sys
 
@@ -39,6 +40,8 @@ except ImportError:
     pass
 
 from modules.data_manager import DataManager  # noqa: E402
+
+logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------
 # 全局主题配置
@@ -96,8 +99,8 @@ class LoginWindow(ctk.CTk):
         if os.path.exists(icon_path):
             try:
                 self.iconbitmap(icon_path)
-            except Exception:
-                pass  # 忽略图标加载失败，不影响主流程
+            except Exception as e:
+                logger.warning("图标加载失败: %s (路径: %s)", e, icon_path)
 
         # 保存数据管理器实例和登录结果初始状态
         self.dm = data_manager if data_manager else DataManager()

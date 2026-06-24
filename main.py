@@ -12,6 +12,7 @@
 
 """
 
+import logging
 import os
 import sys
 import traceback
@@ -31,18 +32,29 @@ if _project_root not in sys.path:
 
 
 # ------------------------------------------------------------------
+# 全局日志配置
+# ------------------------------------------------------------------
+_logger = logging.getLogger("main")
+_logger.setLevel(logging.INFO)
+if not _logger.handlers:
+    _log_handler = logging.StreamHandler()
+    _log_handler.setFormatter(
+        logging.Formatter("[%(asctime)s] %(levelname)s - %(name)s - %(message)s")
+    )
+    _logger.addHandler(_log_handler)
+
+
+# ------------------------------------------------------------------
 # 全局工具函数
 # ------------------------------------------------------------------
 
 def _log(msg: str) -> None:
-    """日志占位函数，不再写入文件.
-
-    当前实现为空操作（pass），仅保留调用点以便后续需要时统一接入日志系统。
+    """记录日志信息.
 
     Args:
         msg: 日志消息内容。
     """
-    pass
+    _logger.info(msg)
 
 
 def _show_error(title: str, msg: str) -> None:
@@ -71,9 +83,9 @@ def _show_error(title: str, msg: str) -> None:
 # ------------------------------------------------------------------
 # 延迟导入项目模块（必须在 sys.path 配置完成后）
 # ------------------------------------------------------------------
-import customtkinter as ctk  # noqa: E402
-from modules.data_manager import DataManager  # noqa: E402
-from modules.login import LoginWindow  # noqa: E402
+import customtkinter as ctk
+from modules.data_manager import DataManager
+from modules.login import LoginWindow
 
 
 # ------------------------------------------------------------------
