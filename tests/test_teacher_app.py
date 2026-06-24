@@ -1494,7 +1494,7 @@ class TestTeacherMethods(unittest.TestCase):
 
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
-        with patch.object(teacher_app, "EX_OK", True):
+        with patch("src.utils.base_app.EX_OK", True):
             result = app._check_excel_available()
             self.assertTrue(result)
 
@@ -1515,7 +1515,7 @@ class TestTeacherMethods(unittest.TestCase):
 
         mock_dm = self._create_mock_dm()
         app = self._create_app(teacher_app, mock_dm)
-        with patch.object(teacher_app, "EX_OK", False):
+        with patch("src.utils.base_app.EX_OK", False):
             result = app._check_excel_available()
             self.assertFalse(result)
 

@@ -284,13 +284,120 @@ _mock_modules = {
 }
 
 
+def _make_base_app_instance(BaseApp):
+    """创建一个 BaseApp 具体子类的裸实例（绕过 ABC 和 __init__）.
+
+    用于测试需要手动设置属性的 BaseApp 方法。
+    """
+    class _Concrete(BaseApp):
+        def _get_window_title(self):
+            return "Test"
+
+        def _get_header_title(self):
+            return "Test"
+
+        def _get_user_display_name(self):
+            return "Test"
+
+        def _get_avatar_data(self):
+            return {"name": "Test", "avatar": ""}
+
+        def _save_avatar(self, path):
+            pass
+
+        def _get_profile_page_title(self):
+            return "Test"
+
+        def _get_avatar_label_text(self):
+            return "Test"
+
+        def _get_profile_id_label(self):
+            return "Test"
+
+        def _get_profile_id_value(self):
+            return "Test"
+
+        def _get_profile_pwd_label(self):
+            return "Test"
+
+        def _get_profile_name_label(self):
+            return "Test"
+
+        def _get_profile_name_value(self):
+            return "Test"
+
+        def _get_profile_data(self):
+            return {}
+
+        def _save_profile_entity(self, name, phone, email, password):
+            pass
+
+        def _get_current_password(self):
+            return ""
+
+        def _update_password(self, new_password):
+            pass
+
+    return object.__new__(_Concrete)
+
+
 class ConcreteBaseApp:
     """用于测试的 BaseApp 具体子类，实现所有抽象钩子方法."""
 
     def __init__(self, base_app_cls, dm, user_info):
         self._dm = dm
         self._user_info = user_info
-        self._app = base_app_cls.__new__(base_app_cls)
+        # 创建一个具体子类实例来绕过 ABC 限制
+        class _Concrete(base_app_cls):
+            def _get_window_title(self):
+                return "Test"
+
+            def _get_header_title(self):
+                return "Test"
+
+            def _get_user_display_name(self):
+                return "Test"
+
+            def _get_avatar_data(self):
+                return {"name": "Test", "avatar": ""}
+
+            def _save_avatar(self, path):
+                pass
+
+            def _get_profile_page_title(self):
+                return "Test"
+
+            def _get_avatar_label_text(self):
+                return "Test"
+
+            def _get_profile_id_label(self):
+                return "Test"
+
+            def _get_profile_id_value(self):
+                return "Test"
+
+            def _get_profile_pwd_label(self):
+                return "Test"
+
+            def _get_profile_name_label(self):
+                return "Test"
+
+            def _get_profile_name_value(self):
+                return "Test"
+
+            def _get_profile_data(self):
+                return {}
+
+            def _save_profile_entity(self, name, phone, email, password):
+                pass
+
+            def _get_current_password(self):
+                return ""
+
+            def _update_password(self, new_password):
+                pass
+
+        self._app = object.__new__(_Concrete)
         self._app.dm = dm
         self._app.user_info = user_info or {}
         self._app._logout = False
@@ -311,25 +418,25 @@ class TestBaseAppHooks(unittest.TestCase):
     """测试 BaseApp 的钩子方法默认行为."""
 
     @patch.dict("sys.modules", _mock_modules)
-    def test_hooks_raise_not_implemented(self):
-        """测试所有钩子方法默认抛出 NotImplementedError."""
+    def test_hooks_are_abstract(self):
+        """测试所有钩子方法为抽象方法，BaseApp 无法直接实例化."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
-        for method_name in [
+        # BaseApp 是抽象类，不能直接实例化
+        with self.assertRaises(TypeError):
+            BaseApp()
+
+        # 验证抽象方法存在
+        abstract_methods = {
             "_get_window_title",
             "_get_header_title",
             "_get_user_display_name",
             "_get_avatar_data",
-        ]:
+            "_save_avatar",
+        }
+        for method_name in abstract_methods:
             with self.subTest(method=method_name):
-                method = getattr(app, method_name)
-                with self.assertRaises(NotImplementedError):
-                    method()
-
-        # _save_avatar 需要一个 path 参数
-        with self.assertRaises(NotImplementedError):
-            app._save_avatar("")
+                self.assertIn(method_name, BaseApp.__abstractmethods__)
 
 
 class TestBaseAppInit(unittest.TestCase):
@@ -346,10 +453,55 @@ class TestBaseAppInit(unittest.TestCase):
         mock_dm = MagicMock()
         mock_dm_cls.return_value = mock_dm
 
-        # 创建实现钩子方法的子类，避免 NotImplementedError
+        # 创建实现所有抽象钩子方法的子类
         class TestApp(BaseApp):
             def _get_window_title(self):
                 return "Test"
+
+            def _get_header_title(self):
+                return "Test"
+
+            def _get_user_display_name(self):
+                return "Test"
+
+            def _get_avatar_data(self):
+                return {"name": "Test", "avatar": ""}
+
+            def _save_avatar(self, path):
+                pass
+
+            def _get_profile_page_title(self):
+                return "Test"
+
+            def _get_avatar_label_text(self):
+                return "Test"
+
+            def _get_profile_id_label(self):
+                return "Test"
+
+            def _get_profile_id_value(self):
+                return "Test"
+
+            def _get_profile_pwd_label(self):
+                return "Test"
+
+            def _get_profile_name_label(self):
+                return "Test"
+
+            def _get_profile_name_value(self):
+                return "Test"
+
+            def _get_profile_data(self):
+                return {}
+
+            def _save_profile_entity(self, name, phone, email, password):
+                pass
+
+            def _get_current_password(self):
+                return ""
+
+            def _update_password(self, new_password):
+                pass
 
         app = TestApp(data_manager=None, user_info=None)
 
@@ -365,7 +517,7 @@ class TestBaseAppInit(unittest.TestCase):
         from src.utils.base_app import BaseApp
 
         mock_dm = MagicMock()
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         app.dm = mock_dm
         app.user_info = {"name": "test"}
         app._logout = False
@@ -384,7 +536,7 @@ class TestBaseAppStyles(unittest.TestCase):
         """测试 _setup_styles 调用 Style.configure 和 Style.map."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         app.win = MockWindow()
         app.logger = MagicMock()
 
@@ -404,7 +556,7 @@ class TestBaseAppPageSwitch(unittest.TestCase):
         """测试 _switch_page 清空旧内容并调用 builder."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         app.content_area = MagicMock()
         app.content_area.winfo_children.return_value = [MagicMock(), MagicMock()]
         app.win = MockWindow()
@@ -423,7 +575,7 @@ class TestBaseAppPageSwitch(unittest.TestCase):
         """测试 _set_active_button 设置第一个按钮为活动状态."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         app.win = MockWindow()
 
         btn0 = MagicMock()
@@ -442,7 +594,7 @@ class TestBaseAppPageSwitch(unittest.TestCase):
         """测试 _set_active_button 设置第二个按钮为活动状态."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         app.win = MockWindow()
 
         btn0 = MagicMock()
@@ -453,10 +605,8 @@ class TestBaseAppPageSwitch(unittest.TestCase):
 
         btn0.configure.assert_called_once_with(style="Sidebar.TButton")
         btn1.configure.assert_called_once_with(
-            font=("微软雅黑", 12, "bold"), fg=BaseApp.__new__(BaseApp).win
-            if False
-            else "#00BFA5",
-            bg="#dee2e6",
+            font=("微软雅黑", 12, "bold"), fg="#00BFA5",
+            bg="#E2E8F0",
         )
 
 
@@ -468,7 +618,7 @@ class TestBaseAppStatusBar(unittest.TestCase):
         """测试 _show_status 正确设置状态文本."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         app.status = MagicMock()
 
         app._show_status("测试信息", "ok")
@@ -479,7 +629,7 @@ class TestBaseAppStatusBar(unittest.TestCase):
         """测试 _show_status 默认级别为 info."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         app.status = MagicMock()
 
         app._show_status("默认信息")
@@ -487,13 +637,14 @@ class TestBaseAppStatusBar(unittest.TestCase):
 
     @patch.dict("sys.modules", _mock_modules)
     def test_update_status(self):
-        """测试 _update_status 使用 dm 数据更新状态."""
+        """测试 _update_status 使用 dm.classes（合并去重后）更新状态."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         app.status = MagicMock()
         app.dm = MagicMock()
-        app.dm.students = {"S001": {}, "S002": {}}
+        app.dm.data = {"students": {"S001": {}, "S002": {}}, "classes": ["一班", "二班"]}
+        # _update_status 现在用 self.dm.classes（属性），而非独立列表
         app.dm.classes = ["一班", "二班"]
 
         app._update_status()
@@ -504,7 +655,7 @@ class TestBaseAppStatusBar(unittest.TestCase):
         """测试 _update_clock 设置时钟并注册 after 回调."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         app.clock = MagicMock()
         app.win = MockWindow()
 
@@ -520,7 +671,7 @@ class TestBaseAppTreeview(unittest.TestCase):
         """测试 _calc_subject_widths 计算列宽."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         subjects = ["语文", "数学", "英语"]
         widths = app._calc_subject_widths(subjects)
 
@@ -532,7 +683,7 @@ class TestBaseAppTreeview(unittest.TestCase):
         """测试 _calc_subject_widths 最小宽度限制."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         subjects = ["A", "B"]
         widths = app._calc_subject_widths(subjects, min_width=72)
 
@@ -543,7 +694,7 @@ class TestBaseAppTreeview(unittest.TestCase):
         """测试 _create_treeview 创建 Treeview 并返回."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         parent = MagicMock()
 
         with patch("src.utils.base_app.ttk.Treeview", MockTreeview):
@@ -561,7 +712,7 @@ class TestBaseAppExport(unittest.TestCase):
         """测试 _export_excel_by_class 在 openpyxl 不可用时返回 False."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         app.dm = MagicMock()
 
         with patch("src.utils.base_app.openpyxl", None):
@@ -573,7 +724,7 @@ class TestBaseAppExport(unittest.TestCase):
         """测试 _export_csv_by_class 成功导出 CSV."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         app.dm = MagicMock()
         app.dm.subjects = ["语文"]
         app.dm.get_students_by_class.return_value = [
@@ -592,7 +743,7 @@ class TestBaseAppExport(unittest.TestCase):
         """测试 _export_csv_by_class 班级无学生时仍成功导出表头."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         app.dm = MagicMock()
         app.dm.subjects = ["语文"]
         app.dm.get_students_by_class.return_value = []
@@ -607,7 +758,7 @@ class TestBaseAppExport(unittest.TestCase):
         """测试 _export_csv_by_class 文件写入异常时返回 False."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         app.dm = MagicMock()
         app.dm.subjects = ["语文"]
 
@@ -625,7 +776,7 @@ class TestBaseAppAvatar(unittest.TestCase):
         """测试 _load_avatar 同时更新个人中心和侧边栏头像."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         app.win = MockWindow()
         app._get_avatar_data = MagicMock(return_value={"avatar": "/path/avatar.png"})
         app.avatar_label = MagicMock()
@@ -641,7 +792,7 @@ class TestBaseAppAvatar(unittest.TestCase):
         """测试 _load_avatar 在没有头像标签时不报错."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         app.win = MockWindow()
         app._get_avatar_data = MagicMock(return_value={"avatar": ""})
 
@@ -657,7 +808,7 @@ class TestBaseAppLifecycle(unittest.TestCase):
         """测试 run 返回包含 logout 标志的字典."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         app.win = MockWindow()
         app._logout = True
 
@@ -670,7 +821,7 @@ class TestBaseAppLifecycle(unittest.TestCase):
         """测试 _on_close 保存数据并销毁窗口."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         app.dm = MagicMock()
         app.win = MockWindow()
         app.logger = MagicMock()
@@ -683,7 +834,7 @@ class TestBaseAppLifecycle(unittest.TestCase):
         """测试 _on_close 保存失败时记录警告."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         app.dm = MagicMock()
         app.dm.save.side_effect = Exception("save failed")
         app.win = MockWindow()
@@ -693,34 +844,34 @@ class TestBaseAppLifecycle(unittest.TestCase):
         app.logger.warning.assert_called_once()
 
     @patch.dict("sys.modules", _mock_modules)
-    @patch("src.utils.base_app.messagebox")
-    def test_confirm_logout_yes(self, mock_msgbox):
+    @patch("src.utils.base_app.confirm")
+    def test_confirm_logout_yes(self, mock_confirm):
         """测试 _confirm_logout 用户确认后设置标志并关闭窗口."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         app.dm = MagicMock()
         app.win = MockWindow()
         app.logger = MagicMock()
         app._logout = False
-        mock_msgbox.askyesno.return_value = True
+        mock_confirm.return_value = True
 
         app._confirm_logout()
         self.assertTrue(app._logout)
         app.dm.save.assert_called_once()
 
     @patch.dict("sys.modules", _mock_modules)
-    @patch("src.utils.base_app.messagebox")
-    def test_confirm_logout_no(self, mock_msgbox):
+    @patch("src.utils.base_app.confirm")
+    def test_confirm_logout_no(self, mock_confirm):
         """测试 _confirm_logout 用户取消后不执行任何操作."""
         from src.utils.base_app import BaseApp
 
-        app = BaseApp.__new__(BaseApp)
+        app = _make_base_app_instance(BaseApp)
         app.dm = MagicMock()
         app.win = MockWindow()
         app.logger = MagicMock()
         app._logout = False
-        mock_msgbox.askyesno.return_value = False
+        mock_confirm.return_value = False
 
         app._confirm_logout()
         self.assertFalse(app._logout)

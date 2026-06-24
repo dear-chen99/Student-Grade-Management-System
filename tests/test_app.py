@@ -1382,7 +1382,7 @@ class TestAppPageBuilders(unittest.TestCase):
     @patch("app.load_avatar")
     @patch("app.change_avatar")
     def test_build_admin_profile_page(self, mock_change, mock_load):
-        """测试 _build_admin_profile_page 构建个人中心页面."""
+        """测试 _build_profile_page 构建个人中心页面."""
         import app  # 在 mock 环境就绪后导入，避免提前初始化 GUI
 
         mock_dm = _create_mock_dm()
@@ -1396,8 +1396,8 @@ class TestAppPageBuilders(unittest.TestCase):
         }
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
         parent = MockWindow()
-        instance._build_admin_profile_page(parent)
-        self.assertTrue(hasattr(instance, "admin_avatar_label"))
+        instance._build_profile_page(parent)
+        self.assertTrue(hasattr(instance, "avatar_label"))
 
     @patch.dict("sys.modules", _mock_modules)
     @patch("app.messagebox", tk_mock.messagebox)
@@ -1438,7 +1438,7 @@ class TestAppMethods(unittest.TestCase):
 
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
-        with patch.object(app, "EX_OK", True):
+        with patch("src.utils.base_app.EX_OK", True):
             result = instance._check_excel_available()
             self.assertTrue(result)
 
@@ -1456,7 +1456,7 @@ class TestAppMethods(unittest.TestCase):
 
         mock_dm = _create_mock_dm()
         instance = app.App(data_manager=mock_dm, user_info={"username": "admin"})
-        with patch.object(app, "EX_OK", False):
+        with patch("src.utils.base_app.EX_OK", False):
             result = instance._check_excel_available()
             self.assertFalse(result)
 

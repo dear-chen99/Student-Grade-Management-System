@@ -543,12 +543,13 @@ class TestTeacherPasswordReset:
     def test_reset_teacher_password(self, dm):
         """重置教师密码.
 
-        预期结果：新密码为教师 ID，且数据中被更新。
+        预期结果：新密码为教师 ID，明文存储。
         """
         dm.add_teacher("T001", "王老师", "oldpass")
         new_pwd = dm.reset_teacher_password("T001")
         assert new_pwd == "T001"
         teacher = dm.get_teacher("T001")
+        # 密码明文存储，等于工号
         assert teacher["password"] == "T001"
 
 
