@@ -22,6 +22,7 @@
 | **管理员功能**      | 账号管理（教师/学生）、课程管理、通知发布、课表管理、系统设置（备份/恢复/重置）。      |
 | **数据持久化**      | 自动保存至 JSON 文件，支持手动备份与恢复。                        |
 | **头像管理**       | 支持更换管理员/教师/学生头像，自动保存至 `img/avatars/`。           |
+| **密码安全**       | 所有角色修改密码时须满足：**长度≥6位，且同时包含字母和数字**，实时校验并红色提示     |
 
 ## 技术栈
 
@@ -63,7 +64,8 @@
 │       ├── avatar_utils.py   # 头像加载与更换
 │       ├── base_app.py       # 基础应用父类（封装UI公共逻辑）
 │       ├── excel_handler.py  # Excel 导入导出
-│       └── export.py         # CSV 导出与统计导出
+│       ├── export.py         # CSV 导出与统计导出
+│       └── ui_utils.py       # 通用UI组件与工具函数
 ├── tests/                    # 单元测试完整目录
 │   ├── __init__.py
 │   ├── conftest.py           # 测试全局配置
@@ -77,7 +79,8 @@
 │   ├── test_login.py
 │   ├── test_main.py
 │   ├── test_student_app.py
-│   └── test_teacher_app.py
+│   ├── test_teacher_app.py
+│   └── test_ui_utils.py
 ├── .coverage                 # 覆盖率数据文件
 ├── .gitignore                # Git 忽略规则
 ├── 测试报告.html          # 自动生成的单元测试HTML报告
@@ -134,6 +137,8 @@ python main.py
 - 管理员：`admin` / `123456`
 - 教师：需管理员添加后使用对应工号登录（默认密码为工号）
 - 学生：需管理员或教师添加后使用对应学号登录（默认密码为学号）
+
+  **密码规则**：首次登录后，所有角色在「个人信息」页面修改密码时，**新密码必须同时包含字母和数字，且长度不少于6位**。若不符合要求，输入框下方会显示红色提示并阻止保存。
 
 ### 运行测试（可选）
 
@@ -232,6 +237,7 @@ pytest --cov=modules --cov=src --cov-report=html
 ### 13. 个人中心（管理员 / 教师 / 学生）
 
 - 修改密码、更换头像、更新个人信息（姓名、手机、邮箱）。
+- 密码规则：长度 ≥ 6 位，且同时包含字母和数字；输入时实时校验并红色提示。
 
 ### 14. 系统设置（管理员）
 
@@ -268,9 +274,9 @@ pytest --cov=modules --cov=src --cov-report=html
 | `src/utils/excel_handler.py` | 252        | 137       | **46%**  | 🟠 偏低     |
 | `app.py`                     | 1742       | 1103      | **37%**  | 🔴 GUI密集  |
 | `teacher_app.py`             | 1887       | 1298      | **31%**  | 🔴 GUI密集  |
-| **TOTAL**                    | **10,517** | **3,486** | **67%**  | ✅ 达标 ≥60% |
+| **TOTAL**                    | **10,517** | **3,486** | **67%**  | ✅ 达标 >30% |
 
-> **低覆盖率说明**：`app.py` (37%) 与 `teacher_app.py` (31%) 属于 GUI 交互层，内含大量 Tkinter/ttkbootstrap 界面组件（Canvas、Treeview、Chart 等），在无图形显示环境下无法实例化，已通过 `MockWindow` 模式覆盖可测试的业务逻辑路径；`excel_handler.py` (46%) 中大量代码依赖 `openpyxl` 实际文件 I/O，已对核心功能进行 mock 测试。整体 TOTAL 覆盖率 67% > 60% ✅。
+> **低覆盖率说明**：`app.py` (37%) 与 `teacher_app.py` (31%) 属于 GUI 交互层，内含大量 Tkinter/ttkbootstrap 界面组件（Canvas、Treeview、Chart 等），在无图形显示环境下无法实例化，已通过 `MockWindow` 模式覆盖可测试的业务逻辑路径；`excel_handler.py` (46%) 中大量代码依赖 `openpyxl` 实际文件 I/O，已对核心功能进行 mock 测试。整体 TOTAL 覆盖率 67%。
 
 ### 测试策略明细
 
