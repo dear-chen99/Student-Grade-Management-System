@@ -878,5 +878,497 @@ class TestBaseAppLifecycle(unittest.TestCase):
         app.dm.save.assert_not_called()
 
 
+class TestBaseAppDashboardCard(unittest.TestCase):
+    """测试 _create_dashboard_card 仪表盘卡片方法."""
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_create_dashboard_card_returns_label(self):
+        """测试 _create_dashboard_card 返回数值标签控件."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        app.win = MockWindow()
+
+        container = MagicMock()
+        with patch("src.utils.base_app.tk") as mock_tk:
+            mock_card = MagicMock()
+            mock_label = MagicMock()
+            mock_tk.Frame.return_value = mock_card
+            mock_tk.Label.side_effect = [MagicMock(), MagicMock(), mock_label]
+
+            result = app._create_dashboard_card(
+                container, "📚", "学生总数", 100, "#6366F1"
+            )
+            self.assertEqual(result, mock_label)
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_create_dashboard_card_creates_frame(self):
+        """测试 _create_dashboard_card 创建卡片 Frame 并 pack."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        app.win = MockWindow()
+
+        container = MagicMock()
+        with patch("src.utils.base_app.tk") as mock_tk:
+            mock_card = MagicMock()
+            mock_tk.Frame.return_value = mock_card
+
+            app._create_dashboard_card(
+                container, "📚", "学生总数", 100, "#6366F1"
+            )
+            mock_tk.Frame.assert_called_once()
+            mock_card.pack.assert_called_once()
+
+
+class TestBaseAppZebraStripes(unittest.TestCase):
+    """测试 _apply_zebra_stripes 斑马纹方法."""
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_apply_zebra_stripes_default_tags(self):
+        """测试 _apply_zebra_stripes 使用默认标签名."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        tree = MagicMock()
+
+        app._apply_zebra_stripes(tree)
+        tree.tag_configure.assert_any_call("odd", background=unittest.mock.ANY)
+        tree.tag_configure.assert_any_call("even", background="#FFFFFF")
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_apply_zebra_stripes_custom_tags(self):
+        """测试 _apply_zebra_stripes 使用自定义标签名."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        tree = MagicMock()
+
+        app._apply_zebra_stripes(tree, odd_tag="oddrow", even_tag="evenrow")
+        tree.tag_configure.assert_any_call("oddrow", background=unittest.mock.ANY)
+        tree.tag_configure.assert_any_call("evenrow", background="#FFFFFF")
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_apply_zebra_stripes_call_count(self):
+        """测试 _apply_zebra_stripes 调用 tag_configure 两次."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        tree = MagicMock()
+
+        app._apply_zebra_stripes(tree)
+        self.assertEqual(tree.tag_configure.call_count, 2)
+
+
+class TestBaseAppPositionDialog(unittest.TestCase):
+    """测试 _position_dialog 弹窗定位方法."""
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_position_dialog_sets_geometry(self):
+        """测试 _position_dialog 设置弹窗位置."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        app.win = MockWindow()
+
+        dialog = MagicMock()
+        app._position_dialog(dialog)
+
+        dialog.withdraw.assert_called_once()
+        dialog.geometry.assert_called_once()
+        dialog.deiconify.assert_called_once()
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_position_dialog_offset_values(self):
+        """测试 _position_dialog 偏移量为 +60+120."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        app.win = MockWindow()
+
+        dialog = MagicMock()
+        app._position_dialog(dialog)
+
+        geom_arg = dialog.geometry.call_args[0][0]
+        self.assertIn("+60+120", geom_arg)
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_position_dialog_calls_withdraw_first(self):
+        """测试 _position_dialog 先 withdraw 再 deiconify."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        app.win = MockWindow()
+
+        dialog = MagicMock()
+        app._position_dialog(dialog)
+
+        # 验证调用顺序：withdraw -> geometry -> deiconify
+        calls = [c[0] for c in dialog.method_calls]
+        self.assertIn("withdraw", calls)
+        self.assertIn("deiconify", calls)
+        self.assertLess(calls.index("withdraw"), calls.index("deiconify"))
+
+
+class TestBaseAppBuildProfilePage(unittest.TestCase):
+    """测试 _build_profile_page 模板方法."""
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_build_profile_page_no_exception(self):
+        """测试 _build_profile_page 不抛出异常."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        app.win = MockWindow()
+        app.dm = MagicMock()
+        app._get_profile_data = MagicMock(return_value={})
+        app._get_profile_id_value = MagicMock(return_value="admin")
+        app._get_profile_name_value = MagicMock(return_value="管理员")
+        app._get_current_password = MagicMock(return_value="123456")
+
+        parent = MagicMock()
+        parent.winfo_children.return_value = []
+
+        with patch("src.utils.base_app.tk") as mock_tk:
+            mock_tk.Frame.side_effect = lambda *a, **kw: MagicMock()
+            mock_tk.Label.side_effect = lambda *a, **kw: MagicMock()
+            mock_tk.Entry.side_effect = lambda *a, **kw: MagicMock()
+            mock_tk.Button.side_effect = lambda *a, **kw: MagicMock()
+
+            # 应不抛异常
+            app._build_profile_page(parent)
+
+
+class TestBaseAppChangePassword(unittest.TestCase):
+    """测试 _change_password 模板方法."""
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_change_password_creates_dialog(self):
+        """测试 _change_password 创建修改密码弹窗."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        app.win = MockWindow()
+        app._get_current_password = MagicMock(return_value="123456")
+        app._update_password = MagicMock()
+
+        with patch("src.utils.base_app.tk") as mock_tk:
+            mock_dialog = MagicMock()
+            mock_tk.Toplevel.return_value = mock_dialog
+
+            app._change_password()
+
+            mock_tk.Toplevel.assert_called_once()
+            mock_dialog.title.assert_called_once_with("修改密码")
+            mock_dialog.grab_set.assert_called_once()
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_change_password_dialog_resizable_false(self):
+        """测试 _change_password 弹窗不可调整大小."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        app.win = MockWindow()
+        app._get_current_password = MagicMock(return_value="")
+        app._update_password = MagicMock()
+
+        with patch("src.utils.base_app.tk") as mock_tk:
+            mock_dialog = MagicMock()
+            mock_tk.Toplevel.return_value = mock_dialog
+
+            app._change_password()
+            mock_dialog.resizable.assert_called_once_with(False, False)
+
+
+class TestBaseAppBuildNoticesPage(unittest.TestCase):
+    """测试 _build_notices_page 模板方法."""
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_build_notices_page_empty_notices(self):
+        """测试 _build_notices_page 无通知时显示空提示."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        app.win = MockWindow()
+        app.dm = MagicMock()
+        app.dm.get_notices.return_value = []
+        app._get_notice_role = MagicMock(return_value="")
+
+        parent = MagicMock()
+        parent.winfo_children.return_value = []
+
+        with patch("src.utils.base_app.tk") as mock_tk:
+            app._build_notices_page(parent)
+            # 应清空旧控件
+            parent.winfo_children.assert_called()
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_build_notices_page_with_data(self):
+        """测试 _build_notices_page 有通知数据时创建 Treeview."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        app.win = MockWindow()
+        app.dm = MagicMock()
+        app.dm.get_notices.return_value = [
+            {"title": "测试通知", "publisher": "admin", "date": "2026-06-24", "content": "内容"},
+        ]
+        app._get_notice_role = MagicMock(return_value="teacher")
+
+        parent = MagicMock()
+        parent.winfo_children.return_value = []
+
+        with patch("src.utils.base_app.tk"), \
+             patch("src.utils.base_app.ttk") as mock_ttk:
+            mock_tree = MagicMock()
+            mock_ttk.Treeview.return_value = mock_tree
+
+            app._build_notices_page(parent)
+
+            # 应设置 _notice_tree 属性
+            self.assertTrue(hasattr(app, "_notice_tree"))
+            # 应插入数据行
+            mock_tree.insert.assert_called_once()
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_build_notices_page_destroys_old_widgets(self):
+        """测试 _build_notices_page 清空旧控件."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        app.win = MockWindow()
+        app.dm = MagicMock()
+        app.dm.get_notices.return_value = []
+        app._get_notice_role = MagicMock(return_value="")
+
+        old_widget = MagicMock()
+        parent = MagicMock()
+        parent.winfo_children.return_value = [old_widget]
+
+        with patch("src.utils.base_app.tk"):
+            app._build_notices_page(parent)
+            old_widget.destroy.assert_called_once()
+
+
+class TestBaseAppScheduleView(unittest.TestCase):
+    """测试 _build_schedule_view_page 和 _refresh_schedule_tree 方法."""
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_build_schedule_view_page_no_exception(self):
+        """测试 _build_schedule_view_page 不抛出异常."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        app.win = MockWindow()
+        app.dm = MagicMock()
+        app.dm.get_schedules.return_value = []
+        app._get_schedule_filter_classes = MagicMock(return_value=[])
+        app._get_schedule_class_name = MagicMock(return_value="")
+        app._filter_schedule_entries = MagicMock(return_value=[])
+        app._schedule_show_history = MagicMock()
+
+        parent = MagicMock()
+
+        with patch("src.utils.base_app.tk"), \
+             patch("src.utils.base_app.ttk") as mock_ttk:
+            mock_tree = MagicMock()
+            mock_ttk.Treeview.return_value = mock_tree
+            mock_ttk.Scrollbar.return_value = MagicMock()
+
+            app._build_schedule_view_page(parent)
+
+            # 应设置 _schedule_view_tree 属性
+            self.assertTrue(hasattr(app, "_schedule_view_tree"))
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_build_schedule_view_with_class_filter(self):
+        """测试 _build_schedule_view_page 有班级选择器时创建 Combobox."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        app.win = MockWindow()
+        app.dm = MagicMock()
+        app.dm.get_schedules.return_value = []
+        app._get_schedule_filter_classes = MagicMock(
+            return_value=["一班", "二班"]
+        )
+        app._get_schedule_class_name = MagicMock(return_value="一班")
+        app._filter_schedule_entries = MagicMock(return_value=[])
+        app._schedule_show_history = MagicMock()
+
+        parent = MagicMock()
+
+        with patch("src.utils.base_app.tk"), \
+             patch("src.utils.base_app.ttk") as mock_ttk:
+            mock_tree = MagicMock()
+            mock_ttk.Treeview.return_value = mock_tree
+            mock_ttk.Scrollbar.return_value = MagicMock()
+            mock_ttk.Combobox.return_value = MagicMock()
+
+            app._build_schedule_view_page(parent)
+
+            # 应创建班级选择器
+            mock_ttk.Combobox.assert_called_once()
+            # 应设置 _schedule_class_var
+            self.assertTrue(hasattr(app, "_schedule_class_var"))
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_refresh_schedule_tree_no_tree(self):
+        """测试 _refresh_schedule_tree 无 _schedule_view_tree 时不报错."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        # 不设置 _schedule_view_tree 属性
+
+        # 应不抛异常
+        app._refresh_schedule_tree()
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_refresh_schedule_tree_populates_data(self):
+        """测试 _refresh_schedule_tree 填充课表数据."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        app.win = MockWindow()
+        app.dm = MagicMock()
+        app.dm.get_schedules.return_value = [
+            {"weekday": "周一", "session": "上午", "period": "1-2",
+             "course": "数学", "teacher": "张老师", "room": "101"},
+            {"weekday": "周二", "session": "下午", "period": "3-4",
+             "course": "英语", "teacher": "李老师", "room": "202"},
+        ]
+        app._get_schedule_class_name = MagicMock(return_value="一班")
+        app._filter_schedule_entries = MagicMock(
+            side_effect=lambda x: x
+        )
+
+        mock_tree = MagicMock()
+        mock_tree.get_children.return_value = []
+        app._schedule_view_tree = mock_tree
+
+        app._refresh_schedule_tree()
+
+        # 应插入 2 行数据
+        self.assertEqual(mock_tree.insert.call_count, 2)
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_refresh_schedule_tree_empty_data(self):
+        """测试 _refresh_schedule_tree 无数据时不插入行."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        app.win = MockWindow()
+        app.dm = MagicMock()
+        app.dm.get_schedules.return_value = []
+        app._get_schedule_class_name = MagicMock(return_value="一班")
+        app._filter_schedule_entries = MagicMock(return_value=[])
+
+        mock_tree = MagicMock()
+        mock_tree.get_children.return_value = []
+        app._schedule_view_tree = mock_tree
+
+        app._refresh_schedule_tree()
+
+        mock_tree.insert.assert_not_called()
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_refresh_schedule_tree_clears_old_items(self):
+        """测试 _refresh_schedule_tree 清空旧数据行."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        app.win = MockWindow()
+        app.dm = MagicMock()
+        app.dm.get_schedules.return_value = []
+        app._get_schedule_class_name = MagicMock(return_value="")
+        app._filter_schedule_entries = MagicMock(return_value=[])
+
+        old_items = ["I001", "I002", "I003"]
+        mock_tree = MagicMock()
+        mock_tree.get_children.return_value = old_items
+        app._schedule_view_tree = mock_tree
+
+        app._refresh_schedule_tree()
+
+        # 应逐个删除所有旧行
+        self.assertEqual(mock_tree.delete.call_count, len(old_items))
+        for item in old_items:
+            mock_tree.delete.assert_any_call(item)
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_refresh_schedule_tree_no_class_name(self):
+        """测试 _refresh_schedule_tree 无班级名时不获取数据."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        app.win = MockWindow()
+        app.dm = MagicMock()
+        app._get_schedule_class_name = MagicMock(return_value="")
+        app._filter_schedule_entries = MagicMock(return_value=[])
+
+        mock_tree = MagicMock()
+        mock_tree.get_children.return_value = []
+        app._schedule_view_tree = mock_tree
+
+        app._refresh_schedule_tree()
+
+        # 班级名为空时不应调用 get_schedules
+        app.dm.get_schedules.assert_not_called()
+
+
+class TestBaseAppScheduleHooks(unittest.TestCase):
+    """测试课表钩子方法的默认行为."""
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_get_schedule_filter_classes_default(self):
+        """测试 _get_schedule_filter_classes 默认返回空列表."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        result = app._get_schedule_filter_classes()
+        self.assertEqual(result, [])
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_get_schedule_class_name_default(self):
+        """测试 _get_schedule_class_name 默认返回空字符串."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        result = app._get_schedule_class_name()
+        self.assertEqual(result, "")
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_get_schedule_class_name_with_var(self):
+        """测试 _get_schedule_class_name 从 _schedule_class_var 读取."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        mock_var = MagicMock()
+        mock_var.get.return_value = "一班"
+        app._schedule_class_var = mock_var
+
+        result = app._get_schedule_class_name()
+        self.assertEqual(result, "一班")
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_filter_schedule_entries_default(self):
+        """测试 _filter_schedule_entries 默认不过滤."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        data = [{"course": "数学"}, {"course": "英语"}]
+        result = app._filter_schedule_entries(data)
+        self.assertEqual(result, data)
+
+    @patch.dict("sys.modules", _mock_modules)
+    def test_get_notice_role_default(self):
+        """测试 _get_notice_role 默认返回空字符串."""
+        from src.utils.base_app import BaseApp
+
+        app = _make_base_app_instance(BaseApp)
+        result = app._get_notice_role()
+        self.assertEqual(result, "")
+
+
 if __name__ == "__main__":
     unittest.main()

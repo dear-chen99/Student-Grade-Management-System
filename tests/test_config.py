@@ -181,5 +181,188 @@ class TestConfigConstantsValues(unittest.TestCase):
         self.assertEqual(DATA_CONFIG["temp_suffix"], ".tmp")
 
 
+class TestUIColors(unittest.TestCase):
+    """UI 组件专用色系测试类."""
+
+    def test_ui_colors_exists(self):
+        """测试 UI_COLORS 配置存在."""
+        from src.config import UI_COLORS
+
+        self.assertIsInstance(UI_COLORS, dict)
+
+    def test_ui_colors_primary(self):
+        """测试 UI_COLORS 主色."""
+        from src.config import UI_COLORS
+
+        self.assertEqual(UI_COLORS["primary"], "#6366F1")
+
+    def test_ui_colors_teal(self):
+        """测试 UI_COLORS 青绿色."""
+        from src.config import UI_COLORS
+
+        self.assertEqual(UI_COLORS["teal"], "#00BFA5")
+
+    def test_ui_colors_sidebar(self):
+        """测试 UI_COLORS 侧边栏配色."""
+        from src.config import UI_COLORS
+
+        self.assertIn("sidebar_bg", UI_COLORS)
+        self.assertIn("sidebar_active", UI_COLORS)
+        self.assertIn("sidebar_inactive_bg", UI_COLORS)
+        self.assertIn("sidebar_inactive_fg", UI_COLORS)
+
+    def test_ui_colors_zebra(self):
+        """测试 UI_COLORS 斑马纹配色."""
+        from src.config import UI_COLORS
+
+        self.assertIn("row_odd", UI_COLORS)
+        self.assertIn("row_even", UI_COLORS)
+        self.assertNotEqual(UI_COLORS["row_odd"], UI_COLORS["row_even"])
+
+    def test_ui_colors_card_bg(self):
+        """测试 UI_COLORS 卡片背景色."""
+        from src.config import UI_COLORS
+
+        self.assertEqual(UI_COLORS["card_bg"], "white")
+
+    def test_ui_colors_format_hex(self):
+        """测试 UI_COLORS 中所有 # 开头的颜色格式正确."""
+        from src.config import UI_COLORS
+
+        for key, value in UI_COLORS.items():
+            if value.startswith("#"):
+                self.assertTrue(
+                    len(value) == 7,
+                    f"UI_COLORS[{key}] 格式不正确: {value}",
+                )
+
+
+class TestFonts(unittest.TestCase):
+    """字体配置测试类."""
+
+    def test_fonts_exists(self):
+        """测试 FONTS 配置存在."""
+        from src.config import FONTS
+
+        self.assertIsInstance(FONTS, dict)
+
+    def test_fonts_body(self):
+        """测试 FONTS 正文字体."""
+        from src.config import FONTS
+
+        self.assertIn("body", FONTS)
+        self.assertEqual(FONTS["body"], ("微软雅黑", 11))
+
+    def test_fonts_title(self):
+        """测试 FONTS 标题字体."""
+        from src.config import FONTS
+
+        self.assertIn("title", FONTS)
+        self.assertEqual(FONTS["title"], ("微软雅黑", 14, "bold"))
+
+    def test_fonts_header(self):
+        """测试 FONTS 横幅标题字体."""
+        from src.config import FONTS
+
+        self.assertIn("header", FONTS)
+        self.assertEqual(FONTS["header"], ("微软雅黑", 16, "bold"))
+
+    def test_fonts_small(self):
+        """测试 FONTS 小号字体."""
+        from src.config import FONTS
+
+        self.assertIn("small", FONTS)
+        self.assertEqual(FONTS["small"], ("微软雅黑", 9))
+
+    def test_fonts_all_are_tuples(self):
+        """测试 FONTS 所有值都是元组."""
+        from src.config import FONTS
+
+        for key, value in FONTS.items():
+            self.assertIsInstance(
+                value, tuple, f"FONTS[{key}] 不是元组: {type(value)}"
+            )
+
+
+class TestDialogSizes(unittest.TestCase):
+    """弹窗尺寸配置测试类."""
+
+    def test_dialog_sizes_exists(self):
+        """测试 DIALOG_SIZES 配置存在."""
+        from src.config import DIALOG_SIZES
+
+        self.assertIsInstance(DIALOG_SIZES, dict)
+
+    def test_dialog_sizes_small(self):
+        """测试 DIALOG_SIZES small 尺寸."""
+        from src.config import DIALOG_SIZES
+
+        self.assertEqual(DIALOG_SIZES["small"], "300x220")
+
+    def test_dialog_sizes_medium(self):
+        """测试 DIALOG_SIZES medium 尺寸."""
+        from src.config import DIALOG_SIZES
+
+        self.assertEqual(DIALOG_SIZES["medium"], "350x250")
+
+    def test_dialog_sizes_large(self):
+        """测试 DIALOG_SIZES large 尺寸."""
+        from src.config import DIALOG_SIZES
+
+        self.assertEqual(DIALOG_SIZES["large"], "400x320")
+
+    def test_dialog_sizes_format(self):
+        """测试 DIALOG_SIZES 所有值都是 WxH 格式."""
+        from src.config import DIALOG_SIZES
+
+        import re
+
+        for key, value in DIALOG_SIZES.items():
+            self.assertRegex(
+                value,
+                r"^\d+x\d+$",
+                f"DIALOG_SIZES[{key}] 格式不正确: {value}",
+            )
+
+
+class TestDialogOffset(unittest.TestCase):
+    """弹窗偏移量配置测试类."""
+
+    def test_dialog_offset_exists(self):
+        """测试 DIALOG_OFFSET 配置存在."""
+        from src.config import DIALOG_OFFSET
+
+        self.assertIsInstance(DIALOG_OFFSET, dict)
+
+    def test_dialog_offset_x(self):
+        """测试 DIALOG_OFFSET x 偏移."""
+        from src.config import DIALOG_OFFSET
+
+        self.assertIn("x", DIALOG_OFFSET)
+        self.assertIsInstance(DIALOG_OFFSET["x"], int)
+
+    def test_dialog_offset_y(self):
+        """测试 DIALOG_OFFSET y 偏移."""
+        from src.config import DIALOG_OFFSET
+
+        self.assertIn("y", DIALOG_OFFSET)
+        self.assertIsInstance(DIALOG_OFFSET["y"], int)
+
+    def test_dialog_offset_values(self):
+        """测试 DIALOG_OFFSET 偏移值合理."""
+        from src.config import DIALOG_OFFSET
+
+        self.assertGreater(DIALOG_OFFSET["x"], 0)
+        self.assertGreater(DIALOG_OFFSET["y"], 0)
+
+    def test_dialog_offset_center_exists(self):
+        """测试 DIALOG_OFFSET_CENTER 配置存在."""
+        from src.config import DIALOG_OFFSET_CENTER
+
+        self.assertIsInstance(DIALOG_OFFSET_CENTER, dict)
+        self.assertIn("x", DIALOG_OFFSET_CENTER)
+        self.assertIn("y", DIALOG_OFFSET_CENTER)
+
+
 if __name__ == "__main__":
     unittest.main()
