@@ -14,8 +14,10 @@
 
 """
 
+import logging
 import os
 import shutil
+import sys
 import tkinter as tk
 import uuid
 from tkinter import filedialog
@@ -28,13 +30,18 @@ try:
 except ImportError:
     PIL_AVAILABLE = False
 
+logger = logging.getLogger(__name__)
+
 # ------------------------------------------------------------------
 # 项目路径
 # ------------------------------------------------------------------
-# 获取项目根目录（假设当前文件位于 src/utils/avatar_utils.py）
-_PROJECT_ROOT = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-)
+# 获取项目根目录，兼容 PyInstaller 打包后的 _MEIPASS 环境
+if hasattr(sys, "_MEIPASS"):
+    _PROJECT_ROOT = sys._MEIPASS
+else:
+    _PROJECT_ROOT = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    )
 
 
 def get_avatar_dir() -> str:
@@ -74,7 +81,9 @@ def load_avatar(
         full_path = avatar_path
 
     if not os.path.exists(full_path):
+        logger.warning("头像文件不存在: %s", full_path)
         label.config(text="", image="")
+        label.image = None
         return
 
     try:
@@ -83,9 +92,10 @@ def load_avatar(
         photo = ImageTk.PhotoImage(img)
         label.config(image=photo, text="")
         label.image = photo  # 保持引用，防止被 Python 垃圾回收
-    except Exception:
-        # 图像损坏或格式不支持，清空显示
+    except Exception as e:
+        logger.warning("头像加载失败: %s (路径: %s)", e, full_path)
         label.config(text="", image="")
+        label.image = None
 
 
 def change_avatar(
@@ -153,9 +163,10 @@ def change_avatar(
             if os.path.exists(old_full):
                 try:
                     os.remove(old_full)
-                except OSError:
-                    pass
-    except Exception:
+                except OSError as e:
+                    logger.warning("删除旧头像失败: %s (路径: %s)", e, old_full)
+    except Exception as e:
+        logger.warning("头像更换失败: %s", e, exc_info=True)
         return None
 
     # 存储相对于项目根目录的路径（便于 JSON 可移植）

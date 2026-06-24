@@ -52,6 +52,43 @@ if not logger.handlers:
 
 
 # ------------------------------------------------------------------
+# 密码工具函数（明文模式，保留函数签名以兼容现有调用）
+# ------------------------------------------------------------------
+# 说明：用户要求密码明文存储以便在管理界面查看，以下函数保留
+# 原有接口签名但实际以明文方式处理。
+
+
+def _hash_password(password: str) -> str:
+    """返回密码明文（保留接口兼容性）.
+
+    Args:
+        password: 明文密码。
+
+    Returns:
+        原样返回的密码字符串。
+    """
+    return password
+
+
+def _verify_password(password: str, stored: str) -> bool:
+    """验证明文密码是否匹配.
+
+    Args:
+        password: 用户输入的明文密码。
+        stored: 数据中存储的密码。
+
+    Returns:
+        匹配返回 True，否则 False。
+    """
+    return password == stored
+
+
+def _is_hashed(password: str) -> bool:
+    """明文模式下始终返回 False."""
+    return False
+
+
+# ------------------------------------------------------------------
 # 自定义异常类
 # ------------------------------------------------------------------
 # 定义数据管理相关的异常体系，便于上层界面捕获并给出友好提示。
@@ -662,6 +699,14 @@ class DataManager:
             logger.info("数据目录不存在，创建空数据结构")
 
         self._validate_data_integrity()
+        self._migrate_passwords()
+
+    def _migrate_passwords(self) -> None:
+        """密码迁移占位方法（明文模式下无需迁移）.
+
+        保留方法签名以兼容调用方，实际不做任何操作。
+        """
+        return
 
     def save(self) -> None:
         """保存数据到文件.
@@ -757,12 +802,15 @@ class DataManager:
 
     @property
     def students(self) -> dict[str, dict[str, Any]]:
-        """获取学生字典（深拷贝副本）.
+        """获取学生字典（浅拷贝副本）.
+
+        返回学生字典的浅拷贝，避免每次调用都做深拷贝带来的性能损耗。
+        修改返回值不会影响原始数据，但内部嵌套对象的修改需通过 DataManager 方法进行。
 
         Returns:
-            学生信息字典的深拷贝，修改不会影响原始数据。
+            学生信息字典的浅拷贝。
         """
-        return copy.deepcopy(self.data["students"])
+        return {k: dict(v) for k, v in self.data["students"].items()}
 
     # ------------------------------------------------------------------
     # 科目管理
@@ -1562,6 +1610,26 @@ class DataManager:
         logger.info("教师密码已重置: %s", teacher_id)
         return teacher_id
 
+    def reset_student_password(self, student_id: str) -> str:
+        """重置学生密码为默认密码（学号）.
+
+        Args:
+            student_id: 学号。
+
+        Returns:
+            重置后的默认密码。
+
+        Raises:
+            StudentNotFoundError: 学生不存在时抛出。
+        """
+        student_id = str(student_id).strip()
+        if student_id not in self.data["students"]:
+            raise StudentNotFoundError(student_id)
+        self.data["students"][student_id]["password"] = student_id
+        self.save()
+        logger.info("学生密码已重置: %s", student_id)
+        return student_id
+
     def assign_course_to_teacher(self, teacher_id: str, course_id: str) -> None:
         """为教师分配课程.
 
@@ -1731,7 +1799,11 @@ class DataManager:
         Returns:
             验证成功返回 True。
         """
-        return str(username).strip() == "admin" and str(password).strip() == "123456"
+        admin = self.data.get("admin", {})
+        if str(username).strip() != admin.get("username", "admin"):
+            return False
+        stored_pw = admin.get("password", "")
+        return _verify_password(str(password).strip(), stored_pw)
 
     def authenticate_teacher(
         self, teacher_id: str, password: str
@@ -1746,7 +1818,9 @@ class DataManager:
             验证成功返回教师信息字典，失败返回 None。
         """
         teacher = self.data["teachers"].get(str(teacher_id).strip())
-        if teacher and teacher.get("password") == str(password).strip():
+        if teacher and _verify_password(
+            str(password).strip(), teacher.get("password", "")
+        ):
             return {"teacher_id": teacher_id, "name": teacher["name"]}
         return None
 
@@ -1763,7 +1837,9 @@ class DataManager:
             验证成功返回学生信息字典，失败返回 None。
         """
         student = self.data["students"].get(str(student_id).strip())
-        if student and student.get("password") == str(password).strip():
+        if student and _verify_password(
+            str(password).strip(), student.get("password", "")
+        ):
             return {
                 "student_id": student_id,
                 "name": student["name"],
@@ -1955,6 +2031,85 @@ class DataManager:
                 del self.data["attendance"][date]
             self.save()
 
+    # ------------------------------------------------------------------
+    # 学生评语管理
+    # ------------------------------------------------------------------
+
+    def add_comment(self, student_id: str, course_id: str, content: str) -> None:
+        """为学生添加评语.
+
+        Args:
+            student_id: 学号。
+            course_id: 课程标识。
+            content: 评语内容。
+
+        Raises:
+            StudentNotFoundError: 学生不存在时抛出。
+            InvalidInputError: 评语内容为空时抛出。
+        """
+        student_id = str(student_id).strip()
+        if student_id not in self.data["students"]:
+            raise StudentNotFoundError(student_id)
+        content = str(content).strip()
+        if not content:
+            raise InvalidInputError("评语内容")
+        student = self.data["students"][student_id]
+        if "comments" not in student:
+            student["comments"] = []
+        student["comments"].append(
+            {
+                "course_id": str(course_id).strip(),
+                "content": content,
+                "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            }
+        )
+        self.save()
+        logger.info("评语已添加: 学生 %s", student_id)
+
+    def update_comment(self, student_id: str, index: int, content: str) -> None:
+        """更新学生评语.
+
+        Args:
+            student_id: 学号。
+            index: 评语在列表中的索引。
+            content: 新评语内容。
+
+        Raises:
+            StudentNotFoundError: 学生不存在时抛出。
+            InvalidInputError: 评语内容为空或索引越界时抛出。
+        """
+        student_id = str(student_id).strip()
+        if student_id not in self.data["students"]:
+            raise StudentNotFoundError(student_id)
+        content = str(content).strip()
+        if not content:
+            raise InvalidInputError("评语内容")
+        student = self.data["students"][student_id]
+        comments = student.get("comments", [])
+        if index < 0 or index >= len(comments):
+            raise InvalidInputError("评语索引")
+        comments[index]["content"] = content
+        comments[index]["time"] = datetime.datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+        self.save()
+        logger.info("评语已更新: 学生 %s, 索引 %d", student_id, index)
+
+    def get_comments(self, student_id: str) -> list[dict[str, Any]]:
+        """获取学生评语列表.
+
+        Args:
+            student_id: 学号。
+
+        Returns:
+            评语列表，不存在时返回空列表。
+        """
+        student_id = str(student_id).strip()
+        student = self.data["students"].get(student_id)
+        if not student:
+            return []
+        return list(student.get("comments", []))
+
     def update_admin_profile(
         self,
         name: str = "",
@@ -2000,6 +2155,22 @@ class DataManager:
         if avatar:
             admin["avatar"] = str(avatar).strip()
         self.save()
+
+    def update_admin_password(self, new_password: str) -> None:
+        """更新管理员密码.
+
+        Args:
+            new_password: 新密码明文，将以明文形式存储。
+
+        Raises:
+            InvalidInputError: 密码为空时抛出。
+        """
+        new_password = str(new_password).strip()
+        if not new_password:
+            raise InvalidInputError("管理员密码")
+        self.data["admin"]["password"] = new_password
+        self.save()
+        logger.info("管理员密码已修改")
 
     def get_admin(self) -> dict[str, Any]:
         """获取管理员信息.
@@ -2066,7 +2237,7 @@ class DataManager:
         Returns:
             新公告的 ID。
         """
-        notice_id = str(uuid.uuid4())[:8]
+        notice_id = uuid.uuid4().hex
         notice = {
             "id": notice_id,
             "title": str(title).strip(),
@@ -2097,14 +2268,21 @@ class DataManager:
     # 课表管理
     # ------------------------------------------------------------------
 
-    def get_schedules(self) -> list[dict[str, Any]]:
+    def get_schedules(self, class_name: str = "") -> list[dict[str, Any]]:
         """获取课表列表，按星期、时段和节次排序.
+
+        Args:
+            class_name: 可选，按班级过滤。空字符串表示返回全部。
 
         Returns:
             课表列表，每个元素包含 id, weekday, session, period,
-            course, teacher, room, updated_at。
+            course, teacher, room, class_name, updated_at。
         """
         schedules = list(self.data.get("schedules", []))
+        if class_name:
+            schedules = [
+                s for s in schedules if s.get("class_name", "") == class_name
+            ]
         weekday_order = {
             "周一": 1,
             "周二": 2,
@@ -2133,6 +2311,7 @@ class DataManager:
         teacher: str,
         room: str,
         operator: str = "admin",
+        class_name: str = "",
     ) -> str:
         """添加课表条目.
 
@@ -2144,6 +2323,7 @@ class DataManager:
             teacher: 教师。
             room: 教室。
             operator: 操作者。
+            class_name: 班级名称。
 
         Returns:
             新课表条目的 ID。
@@ -2161,6 +2341,7 @@ class DataManager:
             "course": course.strip(),
             "teacher": teacher.strip(),
             "room": room.strip(),
+            "class_name": class_name.strip(),
             "updated_at": now,
         }
         self.data.setdefault("schedules", []).append(entry)
@@ -2172,6 +2353,7 @@ class DataManager:
                 f"{weekday} {session}第{period}节 " f"{course}({teacher}) {room}"
             ),
             "operator": operator,
+            "class_name": class_name.strip(),
         }
         self.data.setdefault("schedule_history", []).append(history_entry)
         self.save()
@@ -2195,6 +2377,7 @@ class DataManager:
         teacher: str,
         room: str,
         operator: str = "admin",
+        class_name: str = "",
     ) -> None:
         """更新课表条目.
 
@@ -2207,6 +2390,7 @@ class DataManager:
             teacher: 教师。
             room: 教室。
             operator: 操作者。
+            class_name: 班级名称。
         """
         schedule_id = str(schedule_id).strip()
         schedules = self.data.get("schedules", [])
@@ -2226,6 +2410,7 @@ class DataManager:
                 s["course"] = course.strip()
                 s["teacher"] = teacher.strip()
                 s["room"] = room.strip()
+                s["class_name"] = class_name.strip()
                 now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
                 s["updated_at"] = now
                 new_summary = (
@@ -2240,6 +2425,7 @@ class DataManager:
                     "old_summary": old_summary,
                     "new_summary": new_summary,
                     "operator": operator,
+                    "class_name": class_name.strip(),
                 }
                 self.data.setdefault("schedule_history", []).append(history_entry)
                 break
@@ -2256,6 +2442,7 @@ class DataManager:
         schedule_id = str(schedule_id).strip()
         schedules = self.data.get("schedules", [])
         old_summary = ""
+        deleted_class = ""
         for s in schedules:
             if s.get("id") == schedule_id:
                 old_summary = (
@@ -2265,6 +2452,7 @@ class DataManager:
                     f"{s.get('course', '')}({s.get('teacher', '')}) "
                     f"{s.get('room', '')}"
                 )
+                deleted_class = s.get("class_name", "")
                 break
         self.data["schedules"] = [s for s in schedules if s.get("id") != schedule_id]
         if old_summary:
@@ -2275,18 +2463,28 @@ class DataManager:
                 "old_summary": old_summary,
                 "new_summary": "",
                 "operator": operator,
+                "class_name": deleted_class,
             }
             self.data.setdefault("schedule_history", []).append(history_entry)
         self.save()
         logger.info("课表已删除: %s", schedule_id)
 
-    def get_schedule_history(self) -> list[dict[str, Any]]:
+    def get_schedule_history(
+        self, class_names: Optional[set[str]] = None
+    ) -> list[dict[str, Any]]:
         """获取课表变更历史，按时间倒序.
 
+        Args:
+            class_names: 可选的班级名称集合，仅返回这些班级的历史记录；
+                         为 None 时返回全部记录。
+
         Returns:
-            历史记录列表，每个元素包含 time, action, old_summary, new_summary, operator。
+            历史记录列表，每个元素包含 time, action, old_summary, new_summary,
+            operator, class_name。
         """
         history = list(self.data.get("schedule_history", []))
+        if class_names is not None:
+            history = [h for h in history if h.get("class_name", "") in class_names]
         return list(reversed(history))
 
     def clear_schedule_history(self) -> None:
