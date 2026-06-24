@@ -16,23 +16,17 @@ from tkinter import ttk, messagebox, filedialog
 from ttkbootstrap import Window, Style
 
 from modules.data_manager import DataManager
+from src.config import UI_COLORS, FONTS, DIALOG_SIZES
 from src.utils.avatar_utils import load_avatar, change_avatar
-from src.utils.base_app import BaseApp
-
-# 配置模块级日志记录器，用于输出运行时信息与警告
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-if not logger.handlers:
-    _handler = logging.StreamHandler()
-    _handler.setFormatter(
-        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    )
-    logger.addHandler(_handler)
-
-# 界面主题色定义：主色调为青色，用于头部、侧边栏及按钮高亮
-TEAL_COLOR = "#00BFA5"
-TEAL_DARK = "#00897B"
-
+from src.utils.base_app import BaseApp, TEAL_COLOR, TEAL_DARK
+from src.utils.ui_utils import (
+    create_dialog,
+    show_info,
+    show_warning,
+    show_error,
+    confirm,
+    validate_password,
+)
 
 class StudentApp(BaseApp):
     """学生专属界面类，带左侧菜单栏和右侧动态页面.
@@ -110,6 +104,71 @@ class StudentApp(BaseApp):
     def _save_avatar(self, path: str) -> None:
         """保存学生头像路径."""
         self.dm.update_student(self.student_id, avatar=path)
+
+    # ----- 个人中心钩子实现 -----
+
+    def _get_profile_page_title(self) -> str:
+        return "个人信息"
+
+    def _get_avatar_label_text(self) -> str:
+        return "学生头像"
+
+    def _get_profile_id_label(self) -> str:
+        return "学生账号"
+
+    def _get_profile_id_value(self) -> str:
+        return self.student_id
+
+    def _get_profile_pwd_label(self) -> str:
+        return "学生密码"
+
+    def _get_profile_name_label(self) -> str:
+        return "学生名称"
+
+    def _get_profile_name_value(self) -> str:
+        return self.student_name
+
+    def _get_profile_data(self) -> dict:
+        student = self.dm.get_student(self.student_id) or {}
+        return {
+            "password": student.get("password", ""),
+            "phone": student.get("phone", ""),
+            "email": student.get("email", ""),
+        }
+
+    def _save_profile_entity(
+        self, name: str, phone: str, email: str, password: str
+    ) -> None:
+        student = self.dm.get_student(self.student_id) or {}
+        self.dm.update_student(
+            self.student_id,
+            name=name,
+            class_name=self.class_name,
+            phone=phone,
+            email=email,
+            password=password,
+            avatar=student.get("avatar", ""),
+        )
+        # 强制再保存一次，确保写入持久化存储
+        self.dm.save()
+
+    def _on_profile_saved(self, name: str) -> None:
+        self.student_name = name
+        self._update_header_title_text("学生中心", f"学生中心 - {self.student_name}")
+
+    def _get_current_password(self) -> str:
+        student = self.dm.get_student(self.student_id) or {}
+        return student.get("password", "")
+
+    def _update_password(self, new_password: str) -> None:
+        self.dm.update_student(self.student_id, password=new_password)
+
+    def _get_notice_role(self) -> str:
+        return "student"
+
+    def _get_schedule_class_name(self) -> str:
+        """返回学生所在班级名称（固定值，无选择器）."""
+        return self.class_name
 
     def _get_level(self, score: float | None) -> str:
         """根据成绩分数返回对应等级.
@@ -191,7 +250,7 @@ class StudentApp(BaseApp):
         tk.Label(
             banner,
             text=(f"学号：{self.student_id} | " f"班级：{self.class_name or '未分配'}"),
-            font=("微软雅黑", 10),
+            font=FONTS["caption"],
             fg="#e0f2f1",
             bg=TEAL_COLOR,
         ).pack()
@@ -200,51 +259,16 @@ class StudentApp(BaseApp):
         card_row = tk.Frame(parent, bg="white")
         card_row.pack(fill="x", pady=10)
 
-        def create_card(container, icon, title, value, color):
-            """创建仪表盘中的信息卡片组件.
-
-            每个卡片包含图标、标题与数值，水平排列在卡片行中。
-
-            Args:
-                container: 卡片行容器 Frame。
-                icon: 卡片图标字符串。
-                title: 卡片标题。
-                value: 卡片显示数值。
-                color: 数值文本颜色。
-            """
-            card = tk.Frame(container, bg="white", relief="solid", bd=1)
-            card.pack(side="left", fill="both", expand=True, padx=5)
-            tk.Label(
-                card,
-                text=icon,
-                font=("微软雅黑", 20),
-                bg="white",
-            ).pack(anchor="w", padx=10, pady=5)
-            tk.Label(
-                card,
-                text=title,
-                font=("微软雅黑", 10),
-                fg="#6b7280",
-                bg="white",
-            ).pack(anchor="w", padx=10)
-            tk.Label(
-                card,
-                text=str(value),
-                font=("微软雅黑", 24, "bold"),
-                fg=color,
-                bg="white",
-            ).pack(anchor="w", padx=10, pady=5)
-
         # 计算并格式化统计数值
         avg = round(st["avg"], 1) if st else "-"
         total = st.get("total", "-") if st else "-"
         rank_display = f"第 {rank} 名" if rank != "-" else "-"
 
         # 创建四个统计卡片：科目数、平均分、班级排名、总分
-        create_card(card_row, "📚", "已修科目数", len(subjects), TEAL_COLOR)
-        create_card(card_row, "📊", "平均分", avg, "#8B5CF6")
-        create_card(card_row, "🏆", "班级排名", rank_display, "#10B981")
-        create_card(card_row, "📝", "总分", total, "#F59E0B")
+        self._create_dashboard_card(card_row, "📚", "已修科目数", len(subjects), TEAL_COLOR)
+        self._create_dashboard_card(card_row, "📊", "平均分", avg, "#8B5CF6")
+        self._create_dashboard_card(card_row, "🏆", "班级排名", rank_display, UI_COLORS["success"])
+        self._create_dashboard_card(card_row, "📝", "总分", total, UI_COLORS["warning"])
 
         # ---------- 操作提示栏 ----------
         info_frame = tk.Frame(parent, bg="#F0F9FF", bd=1, relief="solid")
@@ -256,221 +280,10 @@ class StudentApp(BaseApp):
         tk.Label(
             info_frame,
             text=tips,
-            font=("微软雅黑", 11),
+            font=FONTS["body"],
             bg="#F0F9FF",
         ).pack(pady=10)
 
-    # ========== 个人信息页面 ==========
-    def _build_profile_page(self, parent: tk.Frame) -> None:
-        """构建个人信息页面.
-
-        展示并允许编辑学生头像、账号（只读）、密码、姓名、手机号与邮箱。
-
-        Args:
-            parent: 页面父容器 Frame。
-        """
-        tk.Label(
-            parent,
-            text="个人信息",
-            font=("微软雅黑", 14, "bold"),
-            bg="white",
-        ).pack(pady=4)
-
-        student = self.dm.get_student(self.student_id) or {}
-
-        # ---------- 头像区域 ----------
-        avatar_frame = tk.Frame(parent, bg="white")
-        avatar_frame.pack(pady=15)
-        tk.Label(
-            avatar_frame,
-            text="学生头像",
-            font=("微软雅黑", 11),
-            bg="white",
-        ).pack(side="left", padx=(0, 15))
-        self.avatar_label = tk.Label(avatar_frame, bg="white")
-        self.avatar_label.pack(side="left")
-        self._load_avatar()
-        ttk.Button(avatar_frame, text="更换头像", command=self._change_avatar).pack(
-            side="left", padx=15
-        )
-
-        # ---------- 表单区域 ----------
-        form_frame = tk.Frame(parent, bg="white")
-        form_frame.pack(pady=10, padx=40)
-
-        entry_opts = {"width": 35, "relief": "solid", "bd": 1, "font": ("微软雅黑", 11)}
-
-        # 学号（只读）
-        tk.Label(form_frame, text="学生账号", font=("微软雅黑", 11), bg="white").grid(
-            row=0, column=0, sticky="e", pady=8, padx=10
-        )
-        id_entry = tk.Entry(
-            form_frame, font=("微软雅黑", 11), width=35, relief="solid", bd=1
-        )
-        id_entry.insert(0, self.student_id)
-        id_entry.config(state="readonly", readonlybackground="#F3F4F6")
-        id_entry.grid(row=0, column=1, sticky="w")
-
-        # 密码（带显示/隐藏切换）
-        tk.Label(form_frame, text="学生密码", font=("微软雅黑", 11), bg="white").grid(
-            row=1, column=0, sticky="e", pady=8, padx=10
-        )
-        pwd_frame = tk.Frame(form_frame, bg="white")
-        pwd_frame.grid(row=1, column=1, sticky="w")
-        pwd_var = tk.StringVar(value=student.get("password", ""))
-        pwd_entry = tk.Entry(pwd_frame, textvariable=pwd_var, show="*", **entry_opts)
-        pwd_entry.pack(side="left")
-
-        def toggle_pwd():
-            """切换密码输入框的显示/隐藏状态.
-
-            点击按钮在明文与密文（*）之间切换，并同步更新按钮图标。
-            """
-            if pwd_entry.cget("show") == "*":
-                pwd_entry.config(show="")
-                toggle_btn.config(text="🙈")
-            else:
-                pwd_entry.config(show="*")
-                toggle_btn.config(text="👁")
-
-        toggle_btn = tk.Button(
-            pwd_frame,
-            text="👁",
-            font=("Segoe UI Emoji", 11),
-            bg="white",
-            relief="flat",
-            cursor="hand2",
-            command=toggle_pwd,
-        )
-        toggle_btn.pack(side="left", padx=5)
-
-        # 姓名
-        tk.Label(form_frame, text="学生名称", font=("微软雅黑", 11), bg="white").grid(
-            row=2, column=0, sticky="e", pady=8, padx=10
-        )
-        name_var = tk.StringVar(value=self.student_name)
-        tk.Entry(form_frame, textvariable=name_var, **entry_opts).grid(
-            row=2, column=1, sticky="w"
-        )
-
-        # 手机号
-        tk.Label(form_frame, text="手机号", font=("微软雅黑", 11), bg="white").grid(
-            row=3, column=0, sticky="e", pady=8, padx=10
-        )
-        phone_var = tk.StringVar(value=student.get("phone", ""))
-        tk.Entry(form_frame, textvariable=phone_var, **entry_opts).grid(
-            row=3, column=1, sticky="w"
-        )
-
-        # 邮箱
-        tk.Label(form_frame, text="邮箱", font=("微软雅黑", 11), bg="white").grid(
-            row=4, column=0, sticky="e", pady=8, padx=10
-        )
-        email_var = tk.StringVar(value=student.get("email", ""))
-        tk.Entry(form_frame, textvariable=email_var, **entry_opts).grid(
-            row=4, column=1, sticky="w"
-        )
-
-        def save_profile():
-            """保存个人资料到数据管理器.
-
-            收集表单中的姓名、手机、邮箱与密码，调用数据管理器更新学生信息，
-            并刷新界面标题以反映最新的姓名。
-            """
-            new_name = name_var.get().strip()
-            new_phone = phone_var.get().strip()
-            new_email = email_var.get().strip()
-            new_pwd = pwd_var.get().strip()
-            try:
-                student = self.dm.get_student(self.student_id) or {}
-                self.dm.update_student(
-                    self.student_id,
-                    name=new_name,
-                    class_name=self.class_name,
-                    phone=new_phone,
-                    email=new_email,
-                    password=new_pwd,
-                    avatar=student.get("avatar", ""),
-                )
-                # 强制再保存一次，确保写入持久化存储
-                self.dm.save()
-                self.student_name = new_name
-                messagebox.showinfo("成功", "个人信息已保存")
-                # 刷新顶部标题栏显示的学生姓名
-                for w in self.win.winfo_children():
-                    if isinstance(w, tk.Frame) and w.winfo_children():
-                        for child in w.winfo_children():
-                            if isinstance(child, tk.Label) and "学生中心" in child.cget(
-                                "text"
-                            ):
-                                child.config(text=f"学生中心 - {self.student_name}")
-                                break
-                        break
-            except Exception as e:
-                messagebox.showerror("错误", f"保存失败：{e}")
-
-        # 保存按钮
-        btn_frame = tk.Frame(parent, bg="white")
-        btn_frame.pack(pady=20)
-        tk.Button(
-            btn_frame,
-            text="保存",
-            font=("微软雅黑", 11),
-            bg="#10B981",
-            fg="white",
-            activebackground="#059669",
-            activeforeground="white",
-            relief="flat",
-            cursor="hand2",
-            width=10,
-            command=save_profile,
-        ).pack()
-
-    def _change_password(self) -> None:
-        """修改个人密码.
-
-        弹出 Toplevel 窗口，要求输入原密码与新密码，验证通过后更新数据。
-        """
-        top = tk.Toplevel(self.win)
-        top.title("修改密码")
-        top.geometry("300x180")
-        top.resizable(False, False)
-        top.transient(self.win)
-        top.grab_set()
-
-        # 将弹窗定位在主窗口右下方偏移处
-        win_x = self.win.winfo_x() + 60
-        win_y = self.win.winfo_y() + 120
-        top.geometry(f"+{win_x}+{win_y}")
-
-        tk.Label(top, text="原密码：").pack(pady=(10, 0))
-        old_entry = ttk.Entry(top, show="*")
-        old_entry.pack()
-
-        tk.Label(top, text="新密码：").pack()
-        new_entry = ttk.Entry(top, show="*")
-        new_entry.pack()
-
-        def do_change():
-            """执行密码修改操作.
-
-            校验原密码正确性及非空后，更新数据并关闭弹窗。
-            """
-            old = old_entry.get().strip()
-            new_pwd = new_entry.get().strip()
-            if not old or not new_pwd:
-                messagebox.showwarning("提示", "密码不能为空", parent=top)
-                return
-            student = self.dm.get_student(self.student_id)
-            if not student or student.get("password") != old:
-                messagebox.showerror("错误", "原密码不正确", parent=top)
-                return
-            self.dm.data["students"][self.student_id]["password"] = new_pwd
-            self.dm.save()
-            messagebox.showinfo("成功", "密码修改成功", parent=top)
-            top.destroy()
-
-        ttk.Button(top, text="确认修改", command=do_change).pack(pady=10)
 
     # ========== 成绩查询页面 ==========
     def _build_scores_page(self, parent: tk.Frame) -> None:
@@ -484,7 +297,7 @@ class StudentApp(BaseApp):
         tk.Label(
             parent,
             text="成绩查询",
-            font=("微软雅黑", 14, "bold"),
+            font=FONTS["title"],
             bg="white",
         ).pack(pady=4)
 
@@ -504,12 +317,12 @@ class StudentApp(BaseApp):
 
         # 配置各等级对应的背景色与前景色标签
         level_tags = {
-            "优秀": ("#D1FAE5", "#10B981"),
-            "良好": ("#DBEAFE", "#3B82F6"),
-            "中等": ("#FEF9C3", "#F59E0B"),
-            "及格": ("#FEF9C3", "#F59E0B"),
-            "不及格": ("#FEE2E2", "#EF4444"),
-            "未录入": ("#F3F4F6", "#9CA3AF"),
+            "优秀": (UI_COLORS["success_light"], UI_COLORS["success"]),
+            "良好": (UI_COLORS["info_light"], "#3B82F6"),
+            "中等": (UI_COLORS["warn_light"], UI_COLORS["warning"]),
+            "及格": (UI_COLORS["warn_light"], UI_COLORS["warning"]),
+            "不及格": (UI_COLORS["danger_light"], UI_COLORS["danger"]),
+            "未录入": (UI_COLORS["page_bg"], UI_COLORS["placeholder"]),
         }
         for tag, (bg, fg) in level_tags.items():
             tree.tag_configure(tag, background=bg, foreground=fg)
@@ -547,16 +360,16 @@ class StudentApp(BaseApp):
             tk.Label(
                 card,
                 text=label,
-                font=("微软雅黑", 10),
+                font=FONTS["caption"],
                 bg="#F0F9FF",
                 fg="#64748B",
             ).pack(pady=(5, 0))
             tk.Label(
                 card,
                 text=value,
-                font=("微软雅黑", 14, "bold"),
+                font=FONTS["title"],
                 bg="#F0F9FF",
-                fg="#0F766E",
+                fg=UI_COLORS["sidebar_bg"],
             ).pack(pady=(0, 5))
 
     # ========== 排名查询页面 ==========
@@ -571,7 +384,7 @@ class StudentApp(BaseApp):
         tk.Label(
             parent,
             text="排名查询",
-            font=("微软雅黑", 14, "bold"),
+            font=FONTS["title"],
             bg="white",
         ).pack(pady=4)
 
@@ -580,7 +393,7 @@ class StudentApp(BaseApp):
             tk.Label(
                 parent,
                 text="暂无成绩数据",
-                font=("微软雅黑", 12),
+                font=FONTS["normal"],
                 bg="white",
             ).pack(pady=20)
             return
@@ -593,7 +406,7 @@ class StudentApp(BaseApp):
         tk.Label(
             ctrl_frame,
             text="选择科目：",
-            font=("微软雅黑", 11),
+            font=FONTS["body"],
             bg="white",
         ).pack(side="left")
         subject_var = tk.StringVar()
@@ -618,17 +431,17 @@ class StudentApp(BaseApp):
         tk.Label(
             left_frame,
             text="单科班级排名",
-            font=("微软雅黑", 12, "bold"),
+            font=FONTS["normal_bold"],
             bg="white",
-            fg="#0F766E",
+            fg=UI_COLORS["sidebar_bg"],
         ).pack(anchor="w", pady=(0, 5))
 
         tk.Label(
             right_frame,
             text="总分班级排名",
-            font=("微软雅黑", 12, "bold"),
+            font=FONTS["normal_bold"],
             bg="white",
-            fg="#0F766E",
+            fg=UI_COLORS["sidebar_bg"],
         ).pack(anchor="w", pady=(0, 5))
 
         # 单科排名 Treeview
@@ -642,7 +455,7 @@ class StudentApp(BaseApp):
             sub_tree.heading(col, text=col)
             sub_tree.column(col, width=width, anchor="center")
         sub_tree.pack(fill="both", expand=True)
-        sub_tree.tag_configure("me", background="#DBEAFE")
+        sub_tree.tag_configure("me", background=UI_COLORS["info_light"])
 
         # 总分排名 Treeview
         total_tree = ttk.Treeview(
@@ -658,7 +471,7 @@ class StudentApp(BaseApp):
             total_tree.heading(col, text=col)
             total_tree.column(col, width=width, anchor="center")
         total_tree.pack(fill="both", expand=True)
-        total_tree.tag_configure("me", background="#DBEAFE")
+        total_tree.tag_configure("me", background=UI_COLORS["info_light"])
 
         def refresh_subject_rank(*_):
             """刷新单科排名 Treeview.
@@ -723,7 +536,7 @@ class StudentApp(BaseApp):
         tk.Label(
             parent,
             text="成绩分析报告",
-            font=("微软雅黑", 14, "bold"),
+            font=FONTS["title"],
             bg="white",
         ).pack(pady=4)
 
@@ -732,7 +545,7 @@ class StudentApp(BaseApp):
             tk.Label(
                 parent,
                 text="暂无成绩数据",
-                font=("微软雅黑", 12),
+                font=FONTS["normal"],
                 bg="white",
             ).pack(pady=20)
             return
@@ -747,23 +560,23 @@ class StudentApp(BaseApp):
         # 根据平均分区间生成不同评价文本与颜色
         if avg >= 90:
             eval_text = "表现优异，继续保持！"
-            eval_color = "#10B981"
+            eval_color = UI_COLORS["success"]
         elif avg >= 80:
             eval_text = "成绩良好，还有提升空间！"
             eval_color = "#3B82F6"
         elif avg >= 70:
             eval_text = "成绩中等，需要更加努力！"
-            eval_color = "#F59E0B"
+            eval_color = UI_COLORS["warning"]
         elif avg >= 60:
             eval_text = "成绩及格，请加强学习！"
             eval_color = "#F97316"
         else:
             eval_text = "成绩不及格，请尽快补习！"
-            eval_color = "#EF4444"
+            eval_color = UI_COLORS["danger"]
         eval_label = tk.Label(
             eval_frame,
             text=eval_text,
-            font=("微软雅黑", 14, "bold"),
+            font=FONTS["title"],
             bg="#F0F9FF",
         )
         eval_label.pack(pady=10)
@@ -780,20 +593,20 @@ class StudentApp(BaseApp):
                 warning_frame,
                 text=f"成绩预警：{', '.join(fail_subjects)} 不及格，"
                 "请重点复习并准备补考！",
-                font=("微软雅黑", 11, "bold"),
-                bg="#FEE2E2",
+                font=FONTS["body_bold"],
+                bg=UI_COLORS["danger_light"],
             )
             warn_label.pack(fill="x", padx=10, pady=5)
-            warn_label.configure(fg="#EF4444")
+            warn_label.configure(fg=UI_COLORS["danger"])
         else:
             safe_label = tk.Label(
                 warning_frame,
                 text="暂无成绩预警，继续保持！",
-                font=("微软雅黑", 11),
+                font=FONTS["body"],
                 bg="white",
             )
             safe_label.pack(anchor="w")
-            safe_label.configure(fg="#10B981")
+            safe_label.configure(fg=UI_COLORS["success"])
 
         # ---------- 详细分析 ----------
         detail_frame = tk.Frame(parent, bg="white")
@@ -855,7 +668,7 @@ class StudentApp(BaseApp):
 
         text_widget = tk.Text(
             detail_frame,
-            font=("微软雅黑", 11),
+            font=FONTS["body"],
             bg="white",
             wrap="word",
             padx=10,
@@ -892,250 +705,29 @@ class StudentApp(BaseApp):
             try:
                 with open(path, "w", encoding="utf-8") as f:
                     f.write(report_text)
-                messagebox.showinfo("成功", f"报告已保存到：{path}")
+                show_info("成功", f"报告已保存到：{path}")
             except Exception as e:
-                messagebox.showerror("错误", f"保存失败：{e}")
+                show_error("错误", f"保存失败：{e}")
 
-    # ========== 通知公告页面 ==========
-    def _build_notices_page(self, parent):
-        """构建通知公告页面（只读列表）.
-
-        以 Treeview 展示面向学生的通知公告，支持双击查看详情。
-
-        Args:
-            parent: 页面父容器 Frame。
-        """
-        for widget in parent.winfo_children():
-            widget.destroy()
-
-        tk.Label(
-            parent, text="📢 通知公告", font=("微软雅黑", 16, "bold"), bg="white"
-        ).pack(anchor="w", padx=20, pady=(15, 10))
-
-        # 获取通知列表（student 角色）
-        notices = (
-            self.dm.get_notices(role="student")
-            if hasattr(self.dm, "get_notices")
-            else []
-        )
-
-        if not notices:
-            tk.Label(
-                parent,
-                text="暂无通知公告",
-                font=("微软雅黑", 12),
-                bg="white",
-                fg="#888888",
-            ).pack(pady=20)
-            return
-
-        tree_frame = tk.Frame(parent, bg="white")
-        tree_frame.pack(fill="both", expand=True, padx=20, pady=10)
-
-        columns = ["标题", "发布者", "日期", "接收对象"]
-        self._student_notice_tree = ttk.Treeview(
-            tree_frame, columns=columns, show="headings", height=18
-        )
-        widths = [250, 100, 120, 100]
-        for col, width in zip(columns, widths):
-            self._student_notice_tree.heading(col, text=col)
-            self._student_notice_tree.column(col, width=width, anchor="center")
-
-        vsb = ttk.Scrollbar(
-            tree_frame, orient="vertical", command=self._student_notice_tree.yview
-        )
-        self._student_notice_tree.configure(yscrollcommand=vsb.set)
-
-        self._student_notice_tree.tag_configure("odd", background="#F8FAFC")
-        self._student_notice_tree.tag_configure("even", background="#FFFFFF")
-        self._student_notice_tree.pack(side="left", fill="both", expand=True)
-        vsb.pack(side="right", fill="y")
-
-        for idx, notice in enumerate(notices):
-            tag = "odd" if idx % 2 == 0 else "even"
-            self._student_notice_tree.insert(
-                "",
-                "end",
-                values=(
-                    notice.get("title", ""),
-                    notice.get("publisher", ""),
-                    notice.get("date", ""),
-                    notice.get("target", "all"),
-                ),
-                tags=(tag,),
-            )
-
-        def _on_double_click(event):
-            """通知列表双击事件处理.
-
-            根据选中行的标题查找对应通知，弹出详情窗口展示完整内容。
-
-            Args:
-                event: tkinter 双击事件对象。
-            """
-            selection = self._student_notice_tree.selection()
-            if not selection:
-                return
-            values = self._student_notice_tree.item(selection[0], "values")
-            title = values[0]
-
-            for n in notices:
-                if n.get("title") == title:
-                    dialog = tk.Toplevel(self.win)
-                    dialog.title(f"通知详情 - {title}")
-                    dialog.geometry("500x400")
-                    dialog.transient(self.win)
-
-                    tk.Label(
-                        dialog, text=title, font=("微软雅黑", 14, "bold"), bg="white"
-                    ).pack(anchor="w", padx=20, pady=(20, 10))
-
-                    info = f"发布者：{n.get('publisher', '')}  |  日期：{n.get('date', '')}"
-                    tk.Label(
-                        dialog,
-                        text=info,
-                        font=("微软雅黑", 10),
-                        bg="white",
-                        fg="#666666",
-                    ).pack(anchor="w", padx=20, pady=(0, 15))
-
-                    content_text = tk.Text(dialog, font=("微软雅黑", 11), wrap="word")
-                    content_text.insert("1.0", n.get("content", ""))
-                    content_text.config(state="disabled")
-                    content_text.pack(fill="both", expand=True, padx=20, pady=(0, 20))
-                    break
-
-        self._student_notice_tree.bind("<Double-1>", _on_double_click)
 
     # ------------------------------------------------------------------
     # 课表查看（只读）
     # ------------------------------------------------------------------
 
-    def _build_schedule_view_page(self, parent):
-        """构建课表查看页面（只读）.
-
-        提供刷新与查看历史功能，以 Treeview 展示课表信息。
-
-        Args:
-            parent: 页面父容器 Frame。
-        """
-        # 标题和工具栏
-        header_frame = tk.Frame(parent, bg="white")
-        header_frame.pack(fill="x", padx=15, pady=(10, 5))
-
-        tk.Label(
-            header_frame,
-            text="📅 课表查看",
-            font=("微软雅黑", 18, "bold"),
-            fg=TEAL_COLOR,
-            bg="white",
-        ).pack(side="left")
-
-        tk.Button(
-            header_frame,
-            text="📜 查看历史",
-            font=("微软雅黑", 11),
-            bg="#3498DB",
-            fg="white",
-            relief="flat",
-            cursor="hand2",
-            command=self._schedule_show_history,
-            padx=16,
-            pady=6,
-        ).pack(side="right", padx=(8, 0))
-
-        tk.Button(
-            header_frame,
-            text="🔄 刷新",
-            font=("微软雅黑", 11),
-            bg="#95A5A6",
-            fg="white",
-            relief="flat",
-            cursor="hand2",
-            command=self._refresh_schedule_tree,
-            padx=16,
-            pady=6,
-        ).pack(side="right")
-
-        # Treeview 表格（只读，无ID列）
-        columns = ("weekday", "session", "period", "course", "teacher", "room")
-        tree_frame = tk.Frame(parent, bg="white")
-        tree_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
-
-        ysb = ttk.Scrollbar(tree_frame, orient="vertical")
-
-        self._schedule_view_tree = ttk.Treeview(
-            tree_frame,
-            columns=columns,
-            show="headings",
-            yscrollcommand=ysb.set,
-        )
-        ysb.config(command=self._schedule_view_tree.yview)
-
-        headings = {
-            "weekday": ("星期", 80),
-            "session": ("时段", 50),
-            "period": ("节次", 50),
-            "course": ("课程名", 160),
-            "teacher": ("教师", 100),
-            "room": ("教室", 80),
-        }
-        for col, (text, width) in headings.items():
-            self._schedule_view_tree.heading(col, text=text)
-            self._schedule_view_tree.column(col, width=width, anchor="center")
-
-        self._schedule_view_tree.pack(side="left", fill="both", expand=True)
-        ysb.pack(side="right", fill="y")
-
-        # 斑马纹样式：奇偶行使用不同背景色，提升可读性
-        self._schedule_view_tree.tag_configure("oddrow", background="#F8FAFC")
-        self._schedule_view_tree.tag_configure("evenrow", background="#FFFFFF")
-
-        # 加载数据
-        self._refresh_schedule_tree()
-
-    def _refresh_schedule_tree(self):
-        """刷新课表 Treeview.
-
-        清空现有数据后重新从数据管理器加载课表列表，并应用斑马纹样式。
-        """
-        tree = getattr(self, "_schedule_view_tree", None)
-        if tree is None:
-            return
-        for item in tree.get_children():
-            tree.delete(item)
-
-        schedules = self.dm.get_schedules()
-        for i, s in enumerate(schedules):
-            tag = "oddrow" if i % 2 == 0 else "evenrow"
-            tree.insert(
-                "",
-                "end",
-                values=(
-                    s.get("weekday", ""),
-                    s.get("session", ""),
-                    s.get("period", ""),
-                    s.get("course", ""),
-                    s.get("teacher", ""),
-                    s.get("room", ""),
-                ),
-                tags=(tag,),
-            )
-
     def _schedule_show_history(self):
-        """查看课表变更历史.
+        """查看课表变更历史（仅显示本班记录）.
 
-        弹出 Toplevel 窗口，以 Treeview 展示课表的历史操作记录（增删改）。
+        弹出 Toplevel 窗口，以 Treeview 展示本班课表的历史操作记录（增删改）。
         """
         history_win = tk.Toplevel(self.win)
-        history_win.title("课表变更历史")
+        history_win.title(f"课表变更历史 - {self.class_name or '本班'}")
         history_win.geometry("750x450")
         history_win.transient(self.win)
 
         tk.Label(
             history_win,
             text="📜 课表变更历史",
-            font=("微软雅黑", 14, "bold"),
+            font=FONTS["title"],
             fg=TEAL_COLOR,
         ).pack(pady=(15, 10))
 
@@ -1171,10 +763,12 @@ class StudentApp(BaseApp):
         ysb.pack(side="right", fill="y")
 
         # 斑马纹
-        tree.tag_configure("oddrow", background="#F8FAFC")
-        tree.tag_configure("evenrow", background="#FFFFFF")
+        self._apply_zebra_stripes(tree, "oddrow", "evenrow")
 
-        history = self.dm.get_schedule_history()
+        # 仅获取本班的历史记录
+        history = self.dm.get_schedule_history(
+            class_names={self.class_name} if self.class_name else None
+        )
         for i, h in enumerate(history):
             tag = "oddrow" if i % 2 == 0 else "evenrow"
             tree.insert(
